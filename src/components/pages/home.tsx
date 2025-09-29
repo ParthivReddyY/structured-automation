@@ -1,11 +1,165 @@
+'use client';
+
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, FileText, Clock, CheckCircle } from "lucide-react"
+import { Upload, FileText, Clock, CheckCircle, Loader2, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { 
+  processFileForAI, 
+  validateFileSize, 
+  validateFileType, 
+  formatFileSize,
+  isMultimodalFile,
+  getProcessingEndpoint 
+} from '@/lib/file-utils';
 
 export default function HomePage() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [textInput, setTextInput] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  // Handle drag events
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  // Handle drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  // Validate and set file
+  const handleFile = (file: File) => {
+    setError(null);
+
+    // Validate file type
+    const typeValidation = validateFileType(file);
+    if (!typeValidation.valid) {
+      setError(typeValidation.error || 'Invalid file type');
+      return;
+    }
+
+    // Validate file size
+    const sizeValidation = validateFileSize(file, 10);
+    if (!sizeValidation.valid) {
+      setError(sizeValidation.error || 'File too large');
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  // Process file
+  const handleProcessFile = async () => {
+    if (!selectedFile) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const fileData = await processFileForAI(selectedFile);
+      const endpoint = getProcessingEndpoint(selectedFile.type);
+      
+      const requestBody = isMultimodalFile(selectedFile.type)
+        ? {
+            fileBase64: fileData.fileBase64,
+            fileName: fileData.fileName,
+            mimeType: fileData.mimeType,
+            extractTasks: true,
+            generateSummary: true,
+            extractMetadata: true,
+          }
+        : {
+            fileContent: fileData.fileContent,
+            fileName: fileData.fileName,
+            extractTasks: true,
+            generateSummary: true,
+            extractMetadata: true,
+          };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Processing failed');
+      }
+
+      // Success - could show results or navigate to results page
+      console.log('Processing successful:', data);
+      setSelectedFile(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process file');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Process text
+  const handleProcessText = async () => {
+    if (!textInput.trim()) {
+      setError('Please enter some text');
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/process-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textInput,
+          extractTasks: true,
+          generateSummary: true,
+          extractMetadata: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Processing failed');
+      }
+
+      console.log('Processing successful:', data);
+      setTextInput("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process text');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -30,15 +184,80 @@ export default function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
-              <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-sm text-muted-foreground mb-4">
-                Drag and drop files here or click to browse
-              </p>
-              <Button variant="outline" className="px-6">Choose Files</Button>
+            <div 
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                dragActive 
+                  ? 'border-primary bg-primary/5' 
+                  : 'border-muted-foreground/25 hover:border-primary/50'
+              }`}
+            >
+              {selectedFile ? (
+                <div className="space-y-4">
+                  <FileText className="h-12 w-12 mx-auto text-primary" />
+                  <div>
+                    <p className="font-medium">{selectedFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatFileSize(selectedFile.size)} • {selectedFile.type}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <Button 
+                      onClick={handleProcessFile} 
+                      disabled={processing}
+                      size="sm"
+                    >
+                      {processing ? (
+                        <>
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Process File'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setSelectedFile(null)}
+                      disabled={processing}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Drag and drop files here or click to browse
+                  </p>
+                  <label htmlFor="file-upload-home">
+                    <Button variant="outline" className="px-6 cursor-pointer" type="button" asChild>
+                      <span>Choose Files</span>
+                    </Button>
+                  </label>
+                  <input
+                    id="file-upload-home"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".txt,.pdf,.docx,image/*"
+                  />
+                </>
+              )}
             </div>
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
             <div className="text-xs text-muted-foreground text-center">
-              Supported formats: PDF, DOCX, TXT • Max 10MB per file
+              Supported formats: PDF, DOCX, TXT, Images • Max 10MB per file
             </div>
           </CardContent>
         </Card>
@@ -58,9 +277,25 @@ export default function HomePage() {
                 id="notes" 
                 placeholder="Paste meeting notes, emails, or any unstructured text here..."
                 className="min-h-[140px] resize-none"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                disabled={processing}
               />
             </div>
-            <Button className="w-full font-medium py-2">Process Text</Button>
+            <Button 
+              className="w-full font-medium py-2"
+              onClick={handleProcessText}
+              disabled={processing || !textInput.trim()}
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Process Text'
+              )}
+            </Button>
           </CardContent>
         </Card>
       </div>
