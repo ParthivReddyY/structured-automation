@@ -154,9 +154,9 @@ export default function CalendarPage() {
 
   const getPriorityColor = (priority: string) => {
     const colors = {
-      high: 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-900 dark:text-red-100',
-      medium: 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500 text-yellow-900 dark:text-yellow-100',
-      low: 'bg-green-100 dark:bg-green-900/40 border-green-500 text-green-900 dark:text-green-100',
+      high: 'bg-red-500/90 dark:bg-red-600/90 border-red-600 dark:border-red-500 text-white',
+      medium: 'bg-yellow-500/90 dark:bg-yellow-600/90 border-yellow-600 dark:border-yellow-500 text-white',
+      low: 'bg-green-500/90 dark:bg-green-600/90 border-green-600 dark:border-green-500 text-white',
     } as const;
     
     return colors[priority as keyof typeof colors] || colors.low;
@@ -582,60 +582,60 @@ export default function CalendarPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div 
-                                        className={`text-xs p-1.5 rounded border-l-4 ${getPriorityColor(event.priority)} truncate hover:shadow-md transition-all cursor-pointer`}
+                                        className={`text-xs p-2 rounded-md border-l-4 ${getPriorityColor(event.priority)} truncate hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer`}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleEventClick(event);
                                         }}
                                       >
-                                        <div className="font-semibold truncate">{event.title}</div>
+                                        <div className="font-bold truncate text-white">{event.title}</div>
                                         {event.startTime && (
-                                          <div className="text-xs opacity-90 flex items-center gap-1 mt-0.5">
+                                          <div className="text-[10px] flex items-center gap-1 mt-1 text-white/95">
                                             <Clock className="h-3 w-3" />
-                                            {event.startTime}
+                                            <span className="font-medium">{event.startTime}</span>
                                           </div>
                                         )}
                                       </div>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" sideOffset={10} className="max-w-sm border-2 shadow-xl bg-gradient-to-br from-background to-accent/30 backdrop-blur-sm">
-                                      <div className="space-y-3 p-1">
+                                    <TooltipContent side="top" sideOffset={10} className="max-w-sm border-2 shadow-xl bg-popover text-popover-foreground backdrop-blur-sm p-3">
+                                      <div className="space-y-3">
                                         <div className="flex items-start justify-between gap-3">
-                                          <p className="font-bold text-base">{event.title}</p>
+                                          <p className="font-bold text-base text-foreground">{event.title}</p>
                                           <Badge 
                                             variant="outline" 
-                                            className={`text-xs shrink-0 ${
+                                            className={`text-xs shrink-0 font-semibold ${
                                               event.priority === 'high' 
-                                                ? 'border-red-500 text-red-500 bg-red-50 dark:bg-red-950' 
+                                                ? 'border-red-500 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50' 
                                                 : event.priority === 'medium' 
-                                                ? 'border-yellow-500 text-yellow-500 bg-yellow-50 dark:bg-yellow-950'
-                                                : 'border-green-500 text-green-500 bg-green-50 dark:bg-green-950'
+                                                ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/50'
+                                                : 'border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/50'
                                             }`}
                                           >
                                             {event.priority}
                                           </Badge>
                                         </div>
                                         {event.description && (
-                                          <p className="text-sm text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-2">
+                                          <p className="text-sm text-foreground/80 leading-relaxed border-l-2 border-primary/50 pl-3 py-1">
                                             {event.description}
                                           </p>
                                         )}
-                                        <div className="space-y-2 text-sm bg-accent/20 rounded-md p-2 border">
+                                        <div className="space-y-2 text-sm bg-muted/50 rounded-lg p-3 border border-border">
                                           {event.startTime && (
-                                            <div className="flex items-center gap-2">
-                                              <Clock className="h-3.5 w-3.5 text-primary" />
-                                              <span className="font-medium">{event.startTime}{event.endTime && ` - ${event.endTime}`}</span>
+                                            <div className="flex items-center gap-2 text-foreground">
+                                              <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                                              <span className="font-semibold">{event.startTime}{event.endTime && ` - ${event.endTime}`}</span>
                                             </div>
                                           )}
                                           {event.location && (
-                                            <div className="flex items-center gap-2">
-                                              <MapPin className="h-3.5 w-3.5 text-primary" />
-                                              <span className="font-medium">{event.location}</span>
+                                            <div className="flex items-center gap-2 text-foreground">
+                                              <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                                              <span className="font-semibold">{event.location}</span>
                                             </div>
                                           )}
                                           {event.attendees && (
-                                            <div className="flex items-center gap-2">
-                                              <Users className="h-3.5 w-3.5 text-primary" />
-                                              <span className="font-medium">{event.attendees}</span>
+                                            <div className="flex items-center gap-2 text-foreground">
+                                              <Users className="h-4 w-4 text-primary flex-shrink-0" />
+                                              <span className="font-semibold">{event.attendees}</span>
                                             </div>
                                           )}
                                         </div>

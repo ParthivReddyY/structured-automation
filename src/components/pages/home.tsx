@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import React from 'react';
+import { useNotifications } from '@/contexts/notification-context';
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -25,7 +26,15 @@ import {
   Square,
   ChevronRight,
   Sparkles,
-  History
+  History,
+  Target,
+  Search,
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  AlertCircle,
+  FileUp
 } from "lucide-react"
 import { toast } from "sonner"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -224,6 +233,7 @@ export default function HomePage() {
   const [selectedMode, setSelectedMode] = useState<ActionMode>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [hasStartedChat, setHasStartedChat] = useState(false);
+  const { addNotification } = useNotifications();
   
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -359,7 +369,12 @@ export default function HomePage() {
   const processFile = (file: File) => {
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <span>File {file.name} is too large. Maximum size is 10MB.</span>
+        </div>
+      );
       return;
     }
 
@@ -375,19 +390,34 @@ export default function HomePage() {
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      toast.error(`File type ${file.type} is not supported.`);
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <span>File type {file.type} is not supported.</span>
+        </div>
+      );
       return;
     }
 
     setAttachedFiles(prev => [...prev, file]);
     
-    toast.success(`${file.name} attached`);
+    toast.success(
+      <div className="flex items-center gap-2">
+        <FileUp className="h-4 w-4" />
+        <span>{file.name} attached</span>
+      </div>
+    );
   };
 
   const copyMessage = (content: string, id: string) => {
     navigator.clipboard.writeText(content);
     setCopiedId(id);
-    toast.success('Copied to clipboard!');
+    toast.success(
+      <div className="flex items-center gap-2">
+        <Check className="h-4 w-4" />
+        <span>Copied to clipboard!</span>
+      </div>
+    );
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -428,38 +458,62 @@ export default function HomePage() {
     };
     setMessages(prev => [...prev, processingMessage]);
 
-    // Show initial processing toast at top
-    const processingToast = toast.loading('🤖 AI is analyzing your request...', {
-      position: 'top-center',
-      duration: Infinity,
-    });
+    // Show initial processing toast at top with icon
+    const processingToast = toast.loading(
+      <div className="flex items-center gap-2">
+        <Bot className="h-4 w-4 animate-pulse" />
+        <span>AI is analyzing your request...</span>
+      </div>,
+      {
+        position: 'top-center',
+        duration: Infinity,
+      }
+    );
 
     try {
       let results: ProcessingResults = {};
 
       // Process based on selected mode
       if (selectedMode) {
-        toast.loading(`🎯 Processing ${selectedMode} request with AI...`, {
-          id: processingToast,
-          position: 'top-center',
-        });
+        toast.loading(
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            <span>Processing {selectedMode} request with AI...</span>
+          </div>,
+          {
+            id: processingToast,
+            position: 'top-center',
+          }
+        );
         results = await processWithMode(userMessage.content, currentFiles, selectedMode);
       } else {
         // Generic processing
         if (currentFiles.length > 0) {
-          toast.loading(`🔍 AI is extracting data from ${currentFiles.length} file${currentFiles.length > 1 ? 's' : ''}...`, {
-            id: processingToast,
-            position: 'top-center',
-          });
+          toast.loading(
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              <span>AI is extracting data from {currentFiles.length} file{currentFiles.length > 1 ? 's' : ''}...</span>
+            </div>,
+            {
+              id: processingToast,
+              position: 'top-center',
+            }
+          );
           const fileResults = await processFiles(currentFiles);
           results = { ...results, ...fileResults };
         }
 
         if (userMessage.content && userMessage.content !== 'Processing attached files...') {
-          toast.loading('💬 AI is analyzing your message...', {
-            id: processingToast,
-            position: 'top-center',
-          });
+          toast.loading(
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>AI is analyzing your message...</span>
+            </div>,
+            {
+              id: processingToast,
+              position: 'top-center',
+            }
+          );
           const textResults = await processText(userMessage.content);
           results = {
             tasksCreated: (results.tasksCreated || 0) + (textResults.tasksCreated || 0),
@@ -484,27 +538,75 @@ export default function HomePage() {
 
       // Show success toasts for each type of item created
       if (results.tasksCreated && results.tasksCreated > 0) {
-        toast.success(`✅ Created ${results.tasksCreated} action item${results.tasksCreated > 1 ? 's' : ''}!`, {
-          description: 'Check the Actions tab to view them',
-          position: 'top-center',
+        toast.success(
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Created {results.tasksCreated} action item{results.tasksCreated > 1 ? 's' : ''}!</span>
+          </div>,
+          {
+            description: 'Check the Actions tab to view them',
+            position: 'top-center',
+          }
+        );
+        // Add notification
+        addNotification({
+          type: 'task',
+          title: `${results.tasksCreated} Action Item${results.tasksCreated > 1 ? 's' : ''} Created`,
+          message: `Successfully created ${results.tasksCreated} new action item${results.tasksCreated > 1 ? 's' : ''}. Check the Actions tab to view them.`,
         });
       }
       if (results.calendarEvents && results.calendarEvents > 0) {
-        toast.success(`📅 Scheduled ${results.calendarEvents} event${results.calendarEvents > 1 ? 's' : ''}!`, {
-          description: 'Check the Calendar tab to view them',
-          position: 'top-center',
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>Scheduled {results.calendarEvents} event{results.calendarEvents > 1 ? 's' : ''}!</span>
+          </div>,
+          {
+            description: 'Check the Calendar tab to view them',
+            position: 'top-center',
+          }
+        );
+        // Add notification
+        addNotification({
+          type: 'event',
+          title: `${results.calendarEvents} Event${results.calendarEvents > 1 ? 's' : ''} Scheduled`,
+          message: `Successfully scheduled ${results.calendarEvents} calendar event${results.calendarEvents > 1 ? 's' : ''}. Check the Calendar tab to view them.`,
         });
       }
       if (results.mailDrafts && results.mailDrafts > 0) {
-        toast.success(`✉️ Drafted ${results.mailDrafts} email${results.mailDrafts > 1 ? 's' : ''}!`, {
-          description: 'Check the Mails tab to view them',
-          position: 'top-center',
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            <span>Drafted {results.mailDrafts} email{results.mailDrafts > 1 ? 's' : ''}!</span>
+          </div>,
+          {
+            description: 'Check the Mails tab to view them',
+            position: 'top-center',
+          }
+        );
+        // Add notification
+        addNotification({
+          type: 'mail',
+          title: `${results.mailDrafts} Email${results.mailDrafts > 1 ? 's' : ''} Drafted`,
+          message: `Successfully drafted ${results.mailDrafts} email${results.mailDrafts > 1 ? 's' : ''}. Check the Mails tab to review and send them.`,
         });
       }
       if (results.todoItems && results.todoItems > 0) {
-        toast.success(`📝 Created ${results.todoItems} todo${results.todoItems > 1 ? 's' : ''}!`, {
-          description: 'Check the Todos tab to view them',
-          position: 'top-center',
+        toast.success(
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-4 w-4" />
+            <span>Created {results.todoItems} todo{results.todoItems > 1 ? 's' : ''}!</span>
+          </div>,
+          {
+            description: 'Check the Todos tab to view them',
+            position: 'top-center',
+          }
+        );
+        // Add notification
+        addNotification({
+          type: 'todo',
+          title: `${results.todoItems} Todo${results.todoItems > 1 ? 's' : ''} Created`,
+          message: `Successfully created ${results.todoItems} todo item${results.todoItems > 1 ? 's' : ''}. Check the Todos tab to view them.`,
         });
       }
 
@@ -512,9 +614,15 @@ export default function HomePage() {
       const totalItems = (results.tasksCreated || 0) + (results.calendarEvents || 0) + 
                         (results.mailDrafts || 0) + (results.todoItems || 0);
       if (totalItems === 0) {
-        toast.success('✨ Processing complete!', {
-          position: 'top-center',
-        });
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            <span>Processing complete!</span>
+          </div>,
+          {
+            position: 'top-center',
+          }
+        );
       }
     } catch (err) {
       console.error('Processing error:', err);
@@ -524,9 +632,15 @@ export default function HomePage() {
           ? { ...msg, content: 'Sorry, there was an error processing your request. Please try again.', processing: false }
           : msg
       ));
-      toast.error('❌ Processing failed. Please try again.', {
-        position: 'top-center',
-      });
+      toast.error(
+        <div className="flex items-center gap-2">
+          <XCircle className="h-4 w-4" />
+          <span>Processing failed. Please try again.</span>
+        </div>,
+        {
+          position: 'top-center',
+        }
+      );
     } finally {
       setProcessing(false);
     }
@@ -775,39 +889,39 @@ export default function HomePage() {
       switch (mode) {
         case 'todo':
           return results.todoItems 
-            ? `✅ Created ${results.todoItems} todo item${results.todoItems > 1 ? 's' : ''}! Check the Todos tab.`
+            ? `✓ Created ${results.todoItems} todo item${results.todoItems > 1 ? 's' : ''}! Check the Todos tab.`
             : "I've processed your todo request. Check the Todos tab.";
         case 'action':
           return results.tasksCreated 
-            ? `📋 Created ${results.tasksCreated} action item${results.tasksCreated > 1 ? 's' : ''}! Check the Actions tab.`
+            ? `✓ Created ${results.tasksCreated} action item${results.tasksCreated > 1 ? 's' : ''}! Check the Actions tab.`
             : "I've processed your action request. Check the Actions tab.";
         case 'mail':
           return results.mailDrafts 
-            ? `✉️ Drafted ${results.mailDrafts} email${results.mailDrafts > 1 ? 's' : ''}! Check the Mails tab.`
+            ? `✓ Drafted ${results.mailDrafts} email${results.mailDrafts > 1 ? 's' : ''}! Check the Mails tab.`
             : "I've processed your mail request. Check the Mails tab.";
         case 'calendar':
           return results.calendarEvents 
-            ? `📅 Scheduled ${results.calendarEvents} event${results.calendarEvents > 1 ? 's' : ''}! Check the Calendar tab.`
+            ? `✓ Scheduled ${results.calendarEvents} event${results.calendarEvents > 1 ? 's' : ''}! Check the Calendar tab.`
             : "I've processed your calendar request. Check the Calendar tab.";
       }
     }
 
-    const parts: string[] = ["✨ Processing complete! Here's what I created:"];
+    const parts: string[] = ["⚡ Processing complete! Here's what I created:"];
     
     if (results.tasksCreated && results.tasksCreated > 0) {
-      parts.push(`\n📋 ${results.tasksCreated} action item${results.tasksCreated > 1 ? 's' : ''}`);
+      parts.push(`\n• ${results.tasksCreated} action item${results.tasksCreated > 1 ? 's' : ''}`);
     }
     
     if (results.calendarEvents && results.calendarEvents > 0) {
-      parts.push(`\n📅 ${results.calendarEvents} calendar event${results.calendarEvents > 1 ? 's' : ''}`);
+      parts.push(`\n• ${results.calendarEvents} calendar event${results.calendarEvents > 1 ? 's' : ''}`);
     }
     
     if (results.mailDrafts && results.mailDrafts > 0) {
-      parts.push(`\n✉️ ${results.mailDrafts} mail draft${results.mailDrafts > 1 ? 's' : ''}`);
+      parts.push(`\n• ${results.mailDrafts} mail draft${results.mailDrafts > 1 ? 's' : ''}`);
     }
     
     if (results.todoItems && results.todoItems > 0) {
-      parts.push(`\n✅ ${results.todoItems} todo item${results.todoItems > 1 ? 's' : ''}`);
+      parts.push(`\n• ${results.todoItems} todo item${results.todoItems > 1 ? 's' : ''}`);
     }
 
     if (parts.length === 1) {

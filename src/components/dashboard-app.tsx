@@ -2,6 +2,9 @@
 
 import * as React from "react"
 import { useState, useEffect } from "react"
+import { useSession, signOut } from "next-auth/react"
+import { useTheme } from "next-themes"
+import { useNotifications } from "@/contexts/notification-context"
 import { type Icon } from "@tabler/icons-react"
 import {
   IconCalendar,
@@ -16,8 +19,13 @@ import {
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconSettings,
+  IconMoon,
+  IconSun,
 } from "@tabler/icons-react"
 import { Bell, Search } from "lucide-react"
+import { AuthModal } from "@/components/auth-modal"
+import { NotificationsPanel } from "@/components/notifications-panel"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -64,14 +72,10 @@ import TodosPage from "@/components/pages/todos"
 import CalendarPage from "@/components/pages/calendar"
 import MailsPage from "@/components/pages/mails"
 import ProfilePage from "@/components/pages/profile"
+import SettingsPage from "@/components/pages/settings"
 
 // Navigation data
 const navigationData = {
-  user: {
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "/avatars/user.jpg",
-  },
   navMain: [
     {
       title: "Home",
@@ -98,10 +102,18 @@ const navigationData = {
       key: "mails",
       icon: IconMail,
     },
+    
+  ],
+  navFooter: [
     {
       title: "Profile",
       key: "profile",
       icon: IconUser,
+    },
+    {
+      title: "Settings",
+      key: "settings",
+      icon: IconSettings,
     },
   ],
 }
@@ -150,83 +162,121 @@ function NavMain({
 }
 
 // User Navigation Component
-function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
+function NavUser() {
   const { isMobile } = useSidebar()
+  const { data: session } = useSession()
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/' })
+  }
+
+  const handleProfileClick = () => {
+    if (!session) {
+      setShowAuthModal(true)
+    }
+  }
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">
-                  {user.email}
-                </span>
-              </div>
-              <IconDotsVertical className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+    <>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                onClick={handleProfileClick}
+              >
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage 
+                    src={session?.user?.image || ''} 
+                    alt={session?.user?.name || 'User'} 
+                  />
+                  <AvatarFallback className="rounded-lg">
+                    {session?.user?.name?.charAt(0).toUpperCase() || 'G'}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">
+                    {session?.user?.name || 'Guest'}
+                  </span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {user.email}
+                    {session?.user?.email || 'Not signed in'}
                   </span>
                 </div>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
-                Notifications
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <IconLogout />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
+                <IconDotsVertical className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            {session && (
+              <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side={isMobile ? "bottom" : "right"}
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarImage 
+                        src={session.user?.image || ''} 
+                        alt={session.user?.name || 'User'} 
+                      />
+                      <AvatarFallback className="rounded-lg">
+                        {session.user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-medium">{session.user?.name}</span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {session.user?.email}
+                      </span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem>
+                    <IconUserCircle />
+                    Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <IconCreditCard />
+                    Billing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <IconNotification />
+                    Notifications
+                  </DropdownMenuItem>
+                  {mounted && (
+                    <DropdownMenuItem onClick={toggleTheme}>
+                      {theme === 'dark' ? <IconSun /> : <IconMoon />}
+                      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <IconLogout />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            )}
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
+    </>
   )
 }
 
@@ -253,7 +303,8 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navigationData.navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={navigationData.user} />
+        <NavMain items={navigationData.navFooter} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )
@@ -262,7 +313,18 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 // Site Header Component
 function SiteHeader() {
   const { currentPage } = React.useContext(NavigationContext)
+  const { theme, setTheme } = useTheme()
+  const { unreadCount } = useNotifications()
+  const [mounted, setMounted] = useState(false)
   const currentPageTitle = navigationData.navMain.find(nav => nav.key === currentPage)?.title || "Dashboard"
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -292,12 +354,26 @@ function SiteHeader() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="relative h-8 w-8 p-0">
-            <Bell className="h-4 w-4" />
-            <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center">
-              3
-            </Badge>
-          </Button>
+          {mounted && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0"
+              onClick={toggleTheme}
+            >
+              {theme === 'dark' ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
+            </Button>
+          )}
+          <NotificationsPanel>
+            <Button variant="ghost" size="sm" className="relative h-8 w-8 p-0">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+          </NotificationsPanel>
         </div>
       </div>
     </header>
@@ -326,6 +402,8 @@ function PageContent({ currentPage }: { currentPage: string }) {
             return <MailsPage />
           case "profile":
             return <ProfilePage />
+          case "settings":
+            return <SettingsPage />
           default:
             return <HomePage />
         }

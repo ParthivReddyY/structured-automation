@@ -160,10 +160,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * PATCH /api/calendar
- * Update calendar event status or details
- */
+
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
@@ -178,7 +175,7 @@ export async function PATCH(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Add updatedAt timestamp
+    
     updates.updatedAt = new Date();
 
     const result = await db
@@ -213,10 +210,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/**
- * DELETE /api/calendar
- * Delete a calendar event
- */
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
