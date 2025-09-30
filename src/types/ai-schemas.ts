@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Schema for extracted tasks from documents
 export const TaskSchema = z.object({
   id: z.string().describe('Unique identifier for the task'),
   title: z.string().describe('Short, actionable title of the task'),
@@ -18,7 +17,6 @@ export const TasksExtractionSchema = z.object({
   summary: z.string().describe('Brief summary of all tasks'),
 });
 
-// Schema for document summary
 export const DocumentSummarySchema = z.object({
   title: z.string().describe('Title or main topic of the document'),
   summary: z.string().describe('Comprehensive summary of the document content'),
@@ -28,7 +26,6 @@ export const DocumentSummarySchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative', 'mixed']).describe('Overall sentiment of the document'),
 });
 
-// Schema for metadata extraction
 export const MetadataSchema = z.object({
   documentType: z.string().describe('Type of document (e.g., meeting notes, project plan, email)'),
   dateReferences: z.array(z.string()).optional().describe('Dates mentioned in the document'),
@@ -39,7 +36,6 @@ export const MetadataSchema = z.object({
   urgency: z.enum(['low', 'medium', 'high']).describe('Urgency level of the content'),
 });
 
-// Schema for intent detection
 export const IntentDetectionSchema = z.object({
   intent: z.enum([
     'meeting',
@@ -55,7 +51,6 @@ export const IntentDetectionSchema = z.object({
   routingTargets: z.array(z.enum(['actions', 'calendar', 'mails', 'todos', 'documents'])).describe('Which tabs/sections should receive this content'),
 });
 
-// Schema for calendar events
 export const CalendarEventSchema = z.object({
   title: z.string().describe('Event title'),
   description: z.string().optional().describe('Event description'),
@@ -69,7 +64,6 @@ export const CalendarEventSchema = z.object({
   reminders: z.array(z.string()).optional().describe('Reminder times (e.g., "15 minutes before", "1 day before")'),
 });
 
-// Schema for mail drafts
 export const MailDraftSchema = z.object({
   to: z.string().optional().describe('Recipient email or name'),
   subject: z.string().describe('Email subject line'),
@@ -80,7 +74,6 @@ export const MailDraftSchema = z.object({
   category: z.enum(['customer_support', 'project_update', 'meeting_invitation', 'general']).describe('Email category'),
 });
 
-// Schema for todo items
 export const TodoItemSchema = z.object({
   title: z.string().describe('Todo item title'),
   description: z.string().optional().describe('Detailed description'),
@@ -91,7 +84,6 @@ export const TodoItemSchema = z.object({
   subtasks: z.array(z.string()).optional().describe('List of subtasks'),
 });
 
-// Combined schema for full document processing
 export const DocumentProcessingSchema = z.object({
   summary: DocumentSummarySchema,
   tasks: TasksExtractionSchema,
@@ -100,7 +92,6 @@ export const DocumentProcessingSchema = z.object({
   provider: z.enum(['gemini', 'mistral']).describe('AI provider used for processing'),
 });
 
-// Enhanced processing schema with intent detection
 export const IntelligentProcessingSchema = z.object({
   intent: IntentDetectionSchema,
   summary: DocumentSummarySchema,
@@ -113,7 +104,6 @@ export const IntelligentProcessingSchema = z.object({
   provider: z.enum(['gemini', 'mistral']).describe('AI provider used for processing'),
 });
 
-// TypeScript types derived from schemas
 export type Task = z.infer<typeof TaskSchema>;
 export type TasksExtraction = z.infer<typeof TasksExtractionSchema>;
 export type DocumentSummary = z.infer<typeof DocumentSummarySchema>;
@@ -125,7 +115,6 @@ export type MailDraft = z.infer<typeof MailDraftSchema>;
 export type TodoItem = z.infer<typeof TodoItemSchema>;
 export type IntelligentProcessing = z.infer<typeof IntelligentProcessingSchema>;
 
-// Request/Response types for API routes
 export interface ProcessTextRequest {
   text: string;
   provider?: 'gemini' | 'mistral';

@@ -21,11 +21,9 @@ import type {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Helper function to make AI calls with retry logic and fallback
 async function generateWithFallback(prompt: string | object[], retries = 2) {
   let lastError: Error | null = null;
   
-  // Try with Gemini first (more reliable for multimodal)
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await ai.generate({
@@ -38,14 +36,12 @@ async function generateWithFallback(prompt: string | object[], retries = 2) {
       console.warn(`Gemini attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
       lastError = error instanceof Error ? error : new Error(String(error));
       
-      // Wait before retry (exponential backoff)
       if (i < retries) {
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
   }
   
-  // If Gemini fails, try Pixtral as fallback
   try {
     console.log('Falling back to Pixtral...');
     const response = await ai.generate({
@@ -60,24 +56,18 @@ async function generateWithFallback(prompt: string | object[], retries = 2) {
   }
 }
 
-/**
- * Extract JSON from AI response text
- * Handles cases where AI includes markdown code blocks or extra text
- */
+
 function extractJSON(text: string): unknown {
-  // Try to find JSON in markdown code blocks
   const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (codeBlockMatch) {
     return JSON.parse(codeBlockMatch[1]);
   }
 
-  // Try to find raw JSON object
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     return JSON.parse(jsonMatch[0]);
   }
 
-  // If no JSON found, try parsing the whole text
   return JSON.parse(text);
 }
 
@@ -113,7 +103,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate mime type for multimodal support
     const supportedTypes = [
       'application/pdf',
       'image/png',
@@ -144,12 +133,10 @@ export async function POST(request: NextRequest) {
       todoItems: TodoItem[];
     }> = {};
 
-    // Create media object for Genkit multimodal prompt
     const mediaObject = {
       url: `data:${mimeType};base64,${fileBase64}`,
     };
 
-    // Step 1: Detect intent from the image/document content
     const intentResponse = await generateWithFallback([
         { media: mediaObject },
         {
@@ -187,10 +174,8 @@ For images: First extract any visible text using OCR, then analyze the content t
     const intentParsed = extractJSON(intentResponse.text);
     result.intent = intentParsed as IntentDetection;
 
-    // Step 2: Conditionally generate entities based on routing targets
     const routingTargets = result.intent?.routingTargets || [];
 
-    // Generate calendar events if routing to calendar
     if (routingTargets.includes('calendar')) {
       const calendarResponse = await generateWithFallback([
           { media: mediaObject },
@@ -225,7 +210,6 @@ For images with text: Use OCR to extract text first, then identify calendar-rela
       result.calendarEvents = Array.isArray(calendarParsed) ? calendarParsed as CalendarEvent[] : [];
     }
 
-    // Generate mail drafts if routing to mails
     if (routingTargets.includes('mails')) {
       const mailResponse = await generateWithFallback([
           { media: mediaObject },
@@ -257,7 +241,6 @@ For images: Extract text using OCR first, then generate appropriate email drafts
       result.mailDrafts = Array.isArray(mailParsed) ? mailParsed as MailDraft[] : [];
     }
 
-    // Generate todo items if routing to todos
     if (routingTargets.includes('todos')) {
       const todoResponse = await generateWithFallback([
           { media: mediaObject },
@@ -287,7 +270,6 @@ For images: Use OCR to extract visible text, then identify todo items. Return em
       result.todoItems = Array.isArray(todoParsed) ? todoParsed as TodoItem[] : [];
     }
 
-    // Extract tasks if requested (for actions tab)
     if (extractTasks) {
       const tasksResponse = await generateWithFallback([
           { media: mediaObject },
@@ -324,7 +306,6 @@ Extract and structure all tasks found in the document. If it's an image, also de
       result.tasks = parsed as TasksExtraction;
     }
 
-    // Generate summary if requested
     if (generateSummary) {
       const summaryResponse = await generateWithFallback([
           { media: mediaObject },
@@ -353,7 +334,6 @@ If this is an image, describe the visual content and extract any text visible in
       result.summary = parsed as DocumentSummary;
     }
 
-    // Extract metadata if requested
     if (extractMetadata) {
       const metadataResponse = await generateWithFallback([
           { media: mediaObject },
@@ -385,11 +365,8 @@ For images, also extract any text visible using OCR and analyze that content for
 
     const processingTime = Date.now() - startTime;
 
-    // Save to MongoDB
     try {
       const db = await getDatabase();
-      
-      // Create document record
       const documentRecord: Omit<DocumentModel, '_id'> = {
         fileName,
         fileType: mimeType,
@@ -407,14 +384,12 @@ For images, also extract any text visible using OCR and analyze that content for
       const docResult = await db.collection(Collections.DOCUMENTS).insertOne(documentRecord);
       const documentId = docResult.insertedId.toString();
 
-      // Save extracted tasks if any
       if (result.tasks && result.tasks.tasks.length > 0) {
         const taskDocuments = result.tasks.tasks.map(task => 
           taskToDocument(task, documentId)
         );
         await db.collection(Collections.TASKS).insertMany(taskDocuments);
         
-        // Update document with task IDs
         const taskIds = result.tasks.tasks.map(t => t.id);
         await db.collection(Collections.DOCUMENTS).updateOne(
           { _id: docResult.insertedId },
@@ -422,7 +397,6 @@ For images, also extract any text visible using OCR and analyze that content for
         );
       }
 
-      // Save calendar events if any
       if (result.calendarEvents && result.calendarEvents.length > 0) {
         const calendarDocs = result.calendarEvents.map((event) => ({
           ...event,
@@ -434,7 +408,6 @@ For images, also extract any text visible using OCR and analyze that content for
         await db.collection(Collections.CALENDAR_EVENTS).insertMany(calendarDocs);
       }
 
-      // Save mail drafts if any
       if (result.mailDrafts && result.mailDrafts.length > 0) {
         const mailDocs = result.mailDrafts.map((draft) => ({
           ...draft,
@@ -447,7 +420,6 @@ For images, also extract any text visible using OCR and analyze that content for
         await db.collection(Collections.MAIL_DRAFTS).insertMany(mailDocs);
       }
 
-      // Save todo items if any
       if (result.todoItems && result.todoItems.length > 0) {
         const todoDocs = result.todoItems.map((todo) => ({
           ...todo,
@@ -462,7 +434,6 @@ For images, also extract any text visible using OCR and analyze that content for
         await db.collection(Collections.TODOS).insertMany(todoDocs);
       }
 
-      // Create processing log
       const processingLog: Omit<ProcessingLogModel, '_id'> = {
         documentId,
         processingType: 'full-processing',
@@ -483,7 +454,6 @@ For images, also extract any text visible using OCR and analyze that content for
 
     } catch (dbError) {
       console.error('Error saving to MongoDB:', dbError);
-      // Continue anyway - don't fail the request if DB save fails
     }
 
     return NextResponse.json<ProcessingResponse>({

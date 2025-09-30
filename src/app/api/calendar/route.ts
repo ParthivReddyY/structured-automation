@@ -4,10 +4,7 @@ import type { CalendarEventModel } from '@/lib/models';
 
 export const runtime = 'nodejs';
 
-/**
- * GET /api/calendar
- * Fetch calendar events with optional date filtering
- */
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -20,27 +17,22 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Build filter
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     
-    // Date range filtering - fix MongoDB date comparison
     if (startDate || endDate) {
       filter.startDate = {};
       if (startDate) {
-        // Convert to Date object for proper MongoDB comparison
         (filter.startDate as Record<string, unknown>).$gte = new Date(startDate);
       }
       if (endDate) {
-        // Convert to Date object for proper MongoDB comparison
         (filter.startDate as Record<string, unknown>).$lte = new Date(endDate);
       }
     }
 
     console.log('Calendar filter:', JSON.stringify(filter, null, 2));
 
-    // Fetch events - convert to plain objects
     const events = await db
       .collection<CalendarEventModel>(Collections.CALENDAR_EVENTS)
       .find(filter)
@@ -51,7 +43,6 @@ export async function GET(request: NextRequest) {
 
     console.log('Found events:', events.length);
 
-    // Convert MongoDB dates to ISO strings for JSON serialization
     const serializedEvents = events.map(event => ({
       ...event,
       _id: event._id?.toString(),
@@ -86,10 +77,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/calendar
- * Create new calendar event
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

@@ -1,17 +1,9 @@
-/**
- * Utility functions for file handling and conversion
- */
-
-/**
- * Convert a File object to base64 string
- */
 export async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
     reader.onload = () => {
       const result = reader.result as string;
-      // Remove the data:*/*;base64, prefix
       const base64 = result.split(',')[1];
       resolve(base64);
     };
@@ -24,9 +16,6 @@ export async function fileToBase64(file: File): Promise<string> {
   });
 }
 
-/**
- * Extract text content from a text-based file
- */
 export async function extractTextFromFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -43,9 +32,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
   });
 }
 
-/**
- * Determine if a file is multimodal (PDF or image) or plain text
- */
+
 export function isMultimodalFile(mimeType: string): boolean {
   const multimodalTypes = [
     'application/pdf',
@@ -60,9 +47,7 @@ export function isMultimodalFile(mimeType: string): boolean {
   return multimodalTypes.includes(mimeType);
 }
 
-/**
- * Get the appropriate API endpoint based on file type
- */
+
 export function getProcessingEndpoint(mimeType: string): string {
   if (isMultimodalFile(mimeType)) {
     return '/api/process-multimodal';
@@ -70,9 +55,7 @@ export function getProcessingEndpoint(mimeType: string): string {
   return '/api/process-file';
 }
 
-/**
- * Validate file size (default 10MB max)
- */
+
 export function validateFileSize(file: File, maxSizeMB: number = 10): { valid: boolean; error?: string } {
   const maxBytes = maxSizeMB * 1024 * 1024;
   
@@ -86,9 +69,7 @@ export function validateFileSize(file: File, maxSizeMB: number = 10): { valid: b
   return { valid: true };
 }
 
-/**
- * Validate file type
- */
+
 export function validateFileType(file: File): { valid: boolean; error?: string } {
   const allowedTypes = [
     'text/plain',
@@ -112,9 +93,7 @@ export function validateFileType(file: File): { valid: boolean; error?: string }
   return { valid: true };
 }
 
-/**
- * Format file size for display
- */
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   
@@ -125,17 +104,13 @@ export function formatFileSize(bytes: number): string {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
-/**
- * Get file extension from filename
- */
+
 export function getFileExtension(filename: string): string {
   const parts = filename.split('.');
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
 }
 
-/**
- * Process file for AI analysis
- */
+
 export async function processFileForAI(file: File): Promise<{
   fileName: string;
   mimeType: string;
@@ -145,13 +120,11 @@ export async function processFileForAI(file: File): Promise<{
   const fileName = file.name;
   const mimeType = file.type;
   
-  // For multimodal files (PDF, images), convert to base64
   if (isMultimodalFile(mimeType)) {
     const fileBase64 = await fileToBase64(file);
     return { fileName, mimeType, fileBase64 };
   }
   
-  // For text files, extract text content
   const fileContent = await extractTextFromFile(file);
   return { fileName, mimeType, fileContent };
 }

@@ -5,11 +5,7 @@ import { googleAI, gemini15Flash, gemini15Pro, gemini20FlashExp } from '@genkit-
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-/**
- * Test Gemini Models
- * Note: This endpoint is for testing Gemini API availability
- * Primary AI processing now uses Mistral (see test-mistral route)
- */
+
 export async function GET() {
   const testResults = {
     timestamp: new Date().toISOString(),
@@ -17,7 +13,6 @@ export async function GET() {
     tests: [] as Array<{ model: string; status: string; response?: string; error?: string }>,
   };
 
-  // Initialize Genkit with Google AI
   const ai = genkit({
     plugins: [
       googleAI({
@@ -26,7 +21,6 @@ export async function GET() {
     ],
   });
 
-  // Test different Gemini models
   const modelsToTest = [
     { name: 'gemini-2.0-flash-exp', model: gemini20FlashExp },
     { name: 'gemini-1.5-flash', model: gemini15Flash },

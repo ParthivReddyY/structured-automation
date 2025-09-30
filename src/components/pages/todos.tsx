@@ -332,7 +332,6 @@ export default function TodosPage() {
               todos.map((todo) => (
                 <div key={todo._id}>
                   {editingId === todo.id ? (
-                    // Edit Mode
                     <div className="p-4 border-2 border-primary rounded-lg space-y-4 bg-accent/10">
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Task</label>
@@ -393,7 +392,6 @@ export default function TodosPage() {
                       </div>
                     </div>
                   ) : (
-                    // View Mode
                     <div className={`group flex items-start gap-3 p-4 border rounded-lg hover:border-primary/50 hover:bg-accent/5 transition-all ${
                       todo.completed ? 'opacity-60' : ''
                     }`}>

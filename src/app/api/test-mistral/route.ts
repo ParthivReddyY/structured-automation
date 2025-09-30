@@ -5,11 +5,7 @@ import { mistral, openMistralSmall, openMistralLarge } from 'genkitx-mistral';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-/**
- * Test Mistral Models
- * Note: Mistral is the PRIMARY AI model for text processing in this application
- * Mistral Small is used by default for cost-effectiveness and speed
- */
+
 export async function GET() {
   const testResults = {
     timestamp: new Date().toISOString(),
@@ -17,7 +13,6 @@ export async function GET() {
     tests: [] as Array<{ model: string; status: string; response?: string; error?: string; usage?: string }>,
   };
 
-  // Initialize Genkit with Mistral
   const ai = genkit({
     plugins: [
       mistral({
@@ -26,7 +21,6 @@ export async function GET() {
     ],
   });
 
-  // Test Mistral models used in the application
   const modelsToTest = [
     { name: 'mistral-small (PRIMARY)', model: openMistralSmall, usage: 'Default for all text processing' },
     { name: 'mistral-large', model: openMistralLarge, usage: 'Available for complex tasks' },

@@ -4,10 +4,7 @@ import type { DocumentModel } from '@/lib/models';
 
 export const runtime = 'nodejs';
 
-/**
- * GET /api/documents
- * Fetch all documents with optional filtering
- */
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,14 +13,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const skip = parseInt(searchParams.get('skip') || '0');
 
-    const db = await getDatabase();
-    
-    // Build filter
+    const db = await getDatabase();   
     const filter: Record<string, unknown> = {};
     if (status) filter.processingStatus = status;
     if (contentType) filter.contentType = contentType;
 
-    // Fetch documents
+   
     const documents = await db
       .collection<DocumentModel>(Collections.DOCUMENTS)
       .find(filter)

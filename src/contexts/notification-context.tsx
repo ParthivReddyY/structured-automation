@@ -28,13 +28,11 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Load notifications from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('notifications');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        // Convert timestamp strings back to Date objects
         const notifs = parsed.map((n: Notification) => ({
           ...n,
           timestamp: new Date(n.timestamp),
@@ -46,7 +44,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  // Save notifications to localStorage whenever they change
   useEffect(() => {
     if (notifications.length > 0) {
       localStorage.setItem('notifications', JSON.stringify(notifications));

@@ -40,10 +40,8 @@ import { toast } from "sonner"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Utility function for className merging
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
 
-// Embedded CSS for minimal custom styles
 const styles = `
   *:focus-visible {
     outline-offset: 0 !important;
@@ -64,7 +62,6 @@ const styles = `
   }
 `;
 
-// Inject styles once
 if (typeof document !== 'undefined') {
   const existingStyle = document.getElementById('ai-prompt-styles');
   if (!existingStyle) {
@@ -75,7 +72,6 @@ if (typeof document !== 'undefined') {
   }
 }
 
-// Textarea Component
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   className?: string;
 }
@@ -92,7 +88,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
 ));
 Textarea.displayName = "Textarea";
 
-// Tooltip Components
+
 const TooltipProvider = TooltipPrimitive.Provider;
 const Tooltip = TooltipPrimitive.Root;
 const TooltipTrigger = TooltipPrimitive.Trigger;
@@ -112,7 +108,6 @@ const TooltipContent = React.forwardRef<
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
-// Custom Divider Component
 const CustomDivider: React.FC = () => (
   <div className="relative h-6 w-[1.5px] mx-1">
     <div
@@ -121,10 +116,10 @@ const CustomDivider: React.FC = () => (
   </div>
 );
 
-// Action Mode Type
+
 export type ActionMode = "todo" | "action" | "mail" | "calendar" | null;
 
-// Mode selector button component
+
 interface ModeSelectorProps {
   mode: ActionMode;
   label: string;
@@ -141,7 +136,6 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({
   isActive,
   onClick,
 }) => {
-  // Generate classname-safe color variations
   const colorClasses = isActive ? `
     [background-color:${color}15] 
     [border-color:${color}] 
@@ -190,7 +184,6 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({
   );
 };
 
-// Message and File Interfaces
 interface Message {
   id: string;
   type: 'user' | 'assistant' | 'system';
@@ -238,7 +231,6 @@ export default function HomePage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
       const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -248,14 +240,12 @@ export default function HomePage() {
     }
   }, [messages]);
 
-  // Save messages to localStorage
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem('chatMessages', JSON.stringify(messages));
     }
   }, [messages]);
 
-  // Load recent activity
   useEffect(() => {
     loadRecentActivity();
   }, [messages]);
@@ -325,25 +315,25 @@ export default function HomePage() {
       mode: "todo" as ActionMode,
       label: "Todo",
       icon: <ListTodo className="w-4 h-4" />,
-      color: "#F97316", // Orange
+      color: "#F97316", 
     },
     {
       mode: "action" as ActionMode,
       label: "Action",
       icon: <FileCheck2 className="w-4 h-4" />,
-      color: "#1EAEDB", // Blue
+      color: "#1EAEDB", 
     },
     {
       mode: "mail" as ActionMode,
       label: "Mail",
       icon: <Mail className="w-4 h-4" />,
-      color: "#8B5CF6", // Purple
+      color: "#8B5CF6", 
     },
     {
       mode: "calendar" as ActionMode,
       label: "Calendar",
       icon: <Calendar className="w-4 h-4" />,
-      color: "#10B981", // Green
+      color: "#10B981", 
     },
   ];
 
@@ -367,7 +357,6 @@ export default function HomePage() {
   };
 
   const processFile = (file: File) => {
-    // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
       toast.error(
         <div className="flex items-center gap-2">
@@ -378,7 +367,6 @@ export default function HomePage() {
       return;
     }
 
-    // Validate file type
     const allowedTypes = [
       'text/plain',
       'application/pdf',
@@ -424,7 +412,6 @@ export default function HomePage() {
   const handleSubmit = async () => {
     if (!input.trim() && attachedFiles.length === 0) return;
 
-    // Mark that chat has started
     setHasStartedChat(true);
 
     const userMessage: Message = {
@@ -446,7 +433,6 @@ export default function HomePage() {
     setAttachedFiles([]);
     setProcessing(true);
 
-    // Add processing message
     const processingMessage: Message = {
       id: (Date.now() + 1).toString(),
       type: 'assistant',
@@ -458,7 +444,6 @@ export default function HomePage() {
     };
     setMessages(prev => [...prev, processingMessage]);
 
-    // Show initial processing toast at top with icon
     const processingToast = toast.loading(
       <div className="flex items-center gap-2">
         <Bot className="h-4 w-4 animate-pulse" />
@@ -473,7 +458,6 @@ export default function HomePage() {
     try {
       let results: ProcessingResults = {};
 
-      // Process based on selected mode
       if (selectedMode) {
         toast.loading(
           <div className="flex items-center gap-2">
@@ -487,7 +471,6 @@ export default function HomePage() {
         );
         results = await processWithMode(userMessage.content, currentFiles, selectedMode);
       } else {
-        // Generic processing
         if (currentFiles.length > 0) {
           toast.loading(
             <div className="flex items-center gap-2">
@@ -524,10 +507,7 @@ export default function HomePage() {
         }
       }
 
-      // Dismiss processing toast
       toast.dismiss(processingToast);
-
-      // Generate response message
       const responseContent = generateResponseMessage(results, selectedMode);
       
       setMessages(prev => prev.map(msg => 
@@ -536,7 +516,6 @@ export default function HomePage() {
           : msg
       ));
 
-      // Show success toasts for each type of item created
       if (results.tasksCreated && results.tasksCreated > 0) {
         toast.success(
           <div className="flex items-center gap-2">
@@ -548,7 +527,6 @@ export default function HomePage() {
             position: 'top-center',
           }
         );
-        // Add notification
         addNotification({
           type: 'task',
           title: `${results.tasksCreated} Action Item${results.tasksCreated > 1 ? 's' : ''} Created`,
@@ -566,7 +544,6 @@ export default function HomePage() {
             position: 'top-center',
           }
         );
-        // Add notification
         addNotification({
           type: 'event',
           title: `${results.calendarEvents} Event${results.calendarEvents > 1 ? 's' : ''} Scheduled`,
@@ -584,7 +561,6 @@ export default function HomePage() {
             position: 'top-center',
           }
         );
-        // Add notification
         addNotification({
           type: 'mail',
           title: `${results.mailDrafts} Email${results.mailDrafts > 1 ? 's' : ''} Drafted`,
@@ -602,7 +578,6 @@ export default function HomePage() {
             position: 'top-center',
           }
         );
-        // Add notification
         addNotification({
           type: 'todo',
           title: `${results.todoItems} Todo${results.todoItems > 1 ? 's' : ''} Created`,
@@ -610,7 +585,6 @@ export default function HomePage() {
         });
       }
 
-      // Show general success message if nothing specific was created
       const totalItems = (results.tasksCreated || 0) + (results.calendarEvents || 0) + 
                         (results.mailDrafts || 0) + (results.todoItems || 0);
       if (totalItems === 0) {
@@ -654,16 +628,13 @@ export default function HomePage() {
       todoItems: 0,
     };
 
-    // Process files first if any
     if (files.length > 0) {
       const fileResults = await processFiles(files);
       Object.assign(results, fileResults);
     }
 
-    // Process text based on mode
     if (text && text !== 'Processing attached files...') {
       try {
-        // Parse dates intelligently (relative to today)
         const today = new Date();
         const processedText = parseRelativeDates(text, today);
 
@@ -685,7 +656,6 @@ export default function HomePage() {
             break;
           }
           case 'action': {
-            // Use the process-text API to create tasks
             const response = await fetch('/api/process-text', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -698,7 +668,6 @@ export default function HomePage() {
             break;
           }
           case 'mail': {
-            // Use the process-text API to create mail drafts
             const response = await fetch('/api/process-text', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -711,7 +680,6 @@ export default function HomePage() {
             break;
           }
           case 'calendar': {
-            // Use the process-text API to create calendar events
             const response = await fetch('/api/process-text', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -739,11 +707,8 @@ export default function HomePage() {
     
     let processed = text;
     
-    // Replace relative date terms with actual dates
     processed = processed.replace(/\btomorrow\b/gi, tomorrow.toISOString().split('T')[0]);
     processed = processed.replace(/\btoday\b/gi, today.toISOString().split('T')[0]);
-    
-    // Handle "next Monday", "next Friday", etc.
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const nextDayRegex = /\bnext (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi;
     processed = processed.replace(nextDayRegex, (match, day) => {
@@ -771,7 +736,6 @@ export default function HomePage() {
       return today;
     }
     
-    // Try to extract date patterns like "2024-01-15" or "01/15/2024"
     const datePattern = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{4}\b/;
     const match = text.match(datePattern);
     if (match) {
@@ -799,7 +763,6 @@ export default function HomePage() {
       try {
         let response;
         
-        // Read file as base64
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -810,7 +773,6 @@ export default function HomePage() {
         });
         
         if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-          // Use multimodal endpoint
           response = await fetch('/api/process-multimodal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -821,7 +783,6 @@ export default function HomePage() {
             }),
           });
         } else {
-          // Use file processing endpoint (text-based)
           const textContent = atob(base64);
           response = await fetch('/api/process-file', {
             method: 'POST',

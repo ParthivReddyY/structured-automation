@@ -70,7 +70,7 @@ export default function MailsPage() {
       });
       
       if (response.ok) {
-        await fetchDrafts(); // Refresh the list
+        await fetchDrafts(); 
       }
     } catch (err) {
       console.error('Failed to update draft:', err);

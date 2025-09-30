@@ -92,7 +92,6 @@ export default function CalendarPage() {
       setLoading(true);
       setError(null);
       
-      // Fetch all events (no date filter initially)
       const response = await fetch('/api/calendar');
       
       if (!response.ok) {
@@ -183,12 +182,10 @@ export default function CalendarPage() {
     
     const days = [];
     
-    // Previous month padding
     for (let i = 0; i < startDay; i++) {
       days.push(null);
     }
     
-    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
@@ -832,7 +829,6 @@ export default function CalendarPage() {
                   variant="outline"
                   className="gap-2"
                   onClick={() => {
-                    // TODO: Implement edit functionality
                     toast.info('Edit functionality coming soon');
                   }}
                 >

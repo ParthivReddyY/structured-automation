@@ -60,7 +60,7 @@ export default function FileProcessingExample() {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // Handle drag events
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -71,7 +71,7 @@ export default function FileProcessingExample() {
     }
   };
 
-  // Handle drop
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -82,26 +82,24 @@ export default function FileProcessingExample() {
     }
   };
 
-  // Handle file selection
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
   };
 
-  // Validate and set file
+ 
   const handleFile = (file: File) => {
     setError(null);
     setResult(null);
-
-    // Validate file type
+  
     const typeValidation = validateFileType(file);
     if (!typeValidation.valid) {
       setError(typeValidation.error || 'Invalid file type');
       return;
     }
 
-    // Validate file size
     const sizeValidation = validateFileSize(file, 10);
     if (!sizeValidation.valid) {
       setError(sizeValidation.error || 'File too large');
@@ -111,7 +109,6 @@ export default function FileProcessingExample() {
     setSelectedFile(file);
   };
 
-  // Process the file
   const handleProcess = async () => {
     if (!selectedFile) return;
 
@@ -120,13 +117,8 @@ export default function FileProcessingExample() {
     setResult(null);
 
     try {
-      // Prepare file for AI processing
       const fileData = await processFileForAI(selectedFile);
-      
-      // Determine endpoint based on file type
       const endpoint = getProcessingEndpoint(selectedFile.type);
-      
-      // Prepare request body based on file type
       const requestBody = isMultimodalFile(selectedFile.type)
         ? {
             fileBase64: fileData.fileBase64,
@@ -144,7 +136,6 @@ export default function FileProcessingExample() {
             extractMetadata: true,
           };
 
-      // Make API call
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -167,7 +158,6 @@ export default function FileProcessingExample() {
     }
   };
 
-  // Get file icon based on type
   const getFileIcon = () => {
     if (!selectedFile) return <FileText className="h-12 w-12" />;
     

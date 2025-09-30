@@ -4,10 +4,7 @@ import type { TodoModel } from '@/lib/models';
 
 export const runtime = 'nodejs';
 
-/**
- * GET /api/todos
- * Fetch todos with optional filtering
- */
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -19,7 +16,6 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Build filter
     const filter: Record<string, unknown> = {};
     if (completed !== null) {
       filter.completed = completed === 'true';
@@ -27,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (priority) filter.priority = priority;
     if (category) filter.category = category;
 
-    // Fetch todos
+   
     const todos = await db
       .collection<TodoModel>(Collections.TODOS)
       .find(filter)
@@ -61,10 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/todos
- * Create new todo item
- */
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -129,10 +122,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * PATCH /api/todos
- * Update todo (mark complete/incomplete, edit details)
- */
+
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
@@ -147,15 +137,12 @@ export async function PATCH(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Add updatedAt timestamp
     updates.updatedAt = new Date();
     
-    // Add completedAt timestamp if marking as completed
     if (updates.completed === true && !updates.completedAt) {
       updates.completedAt = new Date();
     }
     
-    // Remove completedAt if marking as incomplete
     if (updates.completed === false) {
       updates.completedAt = null;
     }
@@ -192,10 +179,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/**
- * DELETE /api/todos
- * Delete a todo item
- */
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

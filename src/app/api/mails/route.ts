@@ -3,11 +3,6 @@ import { getDatabase, Collections } from '@/lib/mongodb';
 import type { MailDraftModel } from '@/lib/models';
 
 export const runtime = 'nodejs';
-
-/**
- * GET /api/mails
- * Fetch mail drafts with optional filtering
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -19,13 +14,13 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Build filter
+    
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (priority) filter.priority = priority;
 
-    // Fetch mail drafts
+   
     const drafts = await db
       .collection<MailDraftModel>(Collections.MAIL_DRAFTS)
       .find(filter)
@@ -59,10 +54,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/mails
- * Create new mail draft
- */
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -128,10 +120,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * PATCH /api/mails
- * Update mail draft status or content
- */
+
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
@@ -146,10 +135,10 @@ export async function PATCH(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Add updatedAt timestamp
+    
     updates.updatedAt = new Date();
     
-    // Add sentAt timestamp if status is being changed to 'sent'
+  
     if (updates.status === 'sent' && !updates.sentAt) {
       updates.sentAt = new Date();
     }
@@ -186,10 +175,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/**
- * DELETE /api/mails
- * Delete a mail draft
- */
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

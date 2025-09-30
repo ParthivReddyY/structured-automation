@@ -3,11 +3,6 @@ import { getDatabase, Collections } from '@/lib/mongodb';
 import type { ProcessingLogModel } from '@/lib/models';
 
 export const runtime = 'nodejs';
-
-/**
- * GET /api/processing-logs
- * Fetch processing logs
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,12 +11,9 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0');
 
     const db = await getDatabase();
-    
-    // Build filter
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
 
-    // Fetch logs
     const logs = await db
       .collection<ProcessingLogModel>(Collections.PROCESSING_LOGS)
       .find(filter)

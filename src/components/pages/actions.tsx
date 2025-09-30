@@ -62,7 +62,7 @@ export default function ActionsPage() {
       });
       
       if (response.ok) {
-        await fetchTasks(); // Refresh the list
+        await fetchTasks(); 
         const statusLabels: Record<string, string> = {
           'pending': '⏳ Task marked as pending',
           'in-progress': '▶️ Task in progress',
@@ -235,8 +235,7 @@ export default function ActionsPage() {
                 tasks.map((task, index) => (
                   <div key={task._id}>
                     {index > 0 && <Separator />}
-                    {editingId === task.id ? (
-                      // Edit Mode
+                    {editingId === task.id ? (                      
                       <div className="p-4 border-2 border-primary rounded-lg space-y-4 bg-accent/10">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Title</label>
@@ -307,7 +306,7 @@ export default function ActionsPage() {
                         </div>
                       </div>
                     ) : (
-                      // View Mode
+                    
                       <div className="group p-4 border rounded-lg hover:border-primary/50 hover:bg-accent/5 transition-all">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">

@@ -3,11 +3,6 @@ import { getDatabase, Collections } from '@/lib/mongodb';
 import type { TaskDocument } from '@/lib/models';
 
 export const runtime = 'nodejs';
-
-/**
- * GET /api/tasks
- * Fetch all tasks with optional filtering
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,12 +13,11 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Build filter
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
 
-    // Fetch tasks
+    
     const tasks = await db
       .collection<TaskDocument>(Collections.TASKS)
       .find(filter)
@@ -57,10 +51,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * PATCH /api/tasks
- * Update task status or details
- */
+
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
@@ -75,7 +66,6 @@ export async function PATCH(request: NextRequest) {
 
     const db = await getDatabase();
     
-    // Add updatedAt timestamp
     updates.updatedAt = new Date();
 
     const result = await db

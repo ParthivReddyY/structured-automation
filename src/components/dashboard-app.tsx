@@ -65,7 +65,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-// Import page components
 import HomePage from "@/components/pages/home"
 import ActionsPage from "@/components/pages/actions"
 import TodosPage from "@/components/pages/todos"
@@ -74,7 +73,6 @@ import MailsPage from "@/components/pages/mails"
 import ProfilePage from "@/components/pages/profile"
 import SettingsPage from "@/components/pages/settings"
 
-// Navigation data
 const navigationData = {
   navMain: [
     {
@@ -118,7 +116,6 @@ const navigationData = {
   ],
 }
 
-// Create context for navigation
 const NavigationContext = React.createContext<{
   currentPage: string
   setCurrentPage: (page: string) => void
@@ -127,7 +124,6 @@ const NavigationContext = React.createContext<{
   setCurrentPage: () => {},
 })
 
-// Navigation Menu Component
 function NavMain({
   items,
 }: {
@@ -161,7 +157,6 @@ function NavMain({
   )
 }
 
-// User Navigation Component
 function NavUser() {
   const { isMobile } = useSidebar()
   const { data: session } = useSession()
@@ -280,7 +275,6 @@ function NavUser() {
   )
 }
 
-// App Sidebar Component
 function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setCurrentPage } = React.useContext(NavigationContext)
 
@@ -310,7 +304,6 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
 }
 
-// Site Header Component
 function SiteHeader() {
   const { currentPage } = React.useContext(NavigationContext)
   const { theme, setTheme } = useTheme()
@@ -380,14 +373,11 @@ function SiteHeader() {
   )
 }
 
-// Page Content Renderer
 function PageContent({ currentPage }: { currentPage: string }) {
-  // Special handling for home page to give it full viewport access
   if (currentPage === "home") {
     return <HomePage />
   }
   
-  // Regular page content wrapper for other pages
   return (
     <div className="px-4 lg:px-6">
       {(() => {
@@ -412,11 +402,9 @@ function PageContent({ currentPage }: { currentPage: string }) {
   )
 }
 
-// Main Dashboard Application Component
 export function DashboardApp() {
   const [currentPage, setCurrentPage] = useState("home")
 
-  // Handle URL hash changes for bookmarking/direct navigation
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "")
@@ -425,14 +413,12 @@ export function DashboardApp() {
       }
     }
 
-    // Set initial page from URL hash
     handleHashChange()
     
     window.addEventListener("hashchange", handleHashChange)
     return () => window.removeEventListener("hashchange", handleHashChange)
   }, [])
 
-  // Update URL hash when page changes
   useEffect(() => {
     if (currentPage !== "home") {
       window.location.hash = currentPage

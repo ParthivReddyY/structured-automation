@@ -24,11 +24,9 @@ import type {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Helper function to make AI calls with retry logic and fallback
 async function generateWithFallback(prompt: string | object[], retries = 2) {
   let lastError: Error | null = null;
   
-  // Try with Gemini first (more reliable)
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await ai.generate({
@@ -41,14 +39,12 @@ async function generateWithFallback(prompt: string | object[], retries = 2) {
       console.warn(`Gemini attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
       lastError = error instanceof Error ? error : new Error(String(error));
       
-      // Wait before retry (exponential backoff)
       if (i < retries) {
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
   }
   
-  // If Gemini fails, try Mistral as fallback
   try {
     console.log('Falling back to Mistral...');
     const response = await ai.generate({
@@ -63,21 +59,17 @@ async function generateWithFallback(prompt: string | object[], retries = 2) {
   }
 }
 
-// Helper function to extract JSON from AI responses that may include extra text
 function extractJSON(text: string): unknown {
-  // Try to find JSON in markdown code blocks
   const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (codeBlockMatch) {
     return JSON.parse(codeBlockMatch[1]);
   }
   
-  // Try to find raw JSON object
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     return JSON.parse(jsonMatch[0]);
   }
   
-  // Fallback to direct parse
   return JSON.parse(text);
 }
 
@@ -112,7 +104,6 @@ export async function POST(request: NextRequest) {
       todoItems: TodoItem[];
     }> = {};
 
-    // Step 1: Detect intent first
     const intentResponse = await generateWithFallback(`Analyze the following document content from file "${fileName}" and detect the primary intent.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
@@ -131,11 +122,7 @@ ${fileContent}`);
 
     const intentParsed = extractJSON(intentResponse.text);
     result.intent = intentParsed as IntentDetection;
-
-    // Step 2: Based on intent, generate appropriate entities
     const routingTargets = result.intent?.routingTargets || [];
-
-    // Generate calendar events if routing to calendar
     if (routingTargets.includes('calendar')) {
       const calendarResponse = await generateWithFallback(`Extract calendar events from the following document from file "${fileName}".
 
@@ -164,7 +151,6 @@ ${fileContent}`);
       result.calendarEvents = calendarParsed.events || [];
     }
 
-    // Generate mail drafts if routing to mails
     if (routingTargets.includes('mails')) {
       const mailResponse = await ai.generate({
         model: mistralSmall,
@@ -194,7 +180,6 @@ ${fileContent}`,
       result.mailDrafts = mailParsed.drafts || [];
     }
 
-    // Generate todos if routing to todos
     if (routingTargets.includes('todos')) {
       const todoResponse = await ai.generate({
         model: mistralSmall,
@@ -224,7 +209,6 @@ ${fileContent}`,
       result.todoItems = todoParsed.items || [];
     }
 
-    // Extract tasks if requested
     if (extractTasks) {
       const tasksResponse = await ai.generate({
         model: mistralSmall,
@@ -250,7 +234,6 @@ ${fileContent}`,
       result.tasks = parsed as TasksExtraction;
     }
 
-    // Generate summary if requested
     if (generateSummary) {
       const summaryResponse = await ai.generate({
         model: mistralSmall,
@@ -279,7 +262,6 @@ ${fileContent}`,
       result.summary = parsed as DocumentSummary;
     }
 
-    // Extract metadata if requested
     if (extractMetadata) {
       const metadataResponse = await ai.generate({
         model: mistralSmall,
@@ -311,16 +293,14 @@ ${fileContent}`,
 
     const processingTime = Date.now() - startTime;
 
-    // Save to MongoDB
     try {
       const db = await getDatabase();
       
-      // Create document record
       const documentRecord: Omit<DocumentModel, '_id'> = {
         fileName,
-        fileType: 'application/octet-stream', // Generic type for text files
+        fileType: 'application/octet-stream', 
         contentType: 'file',
-        originalContent: fileContent.substring(0, 5000), // Store first 5000 chars
+        originalContent: fileContent.substring(0, 5000), 
         summary: result.summary,
         metadata: result.metadata,
         extractedTaskIds: [],
@@ -334,14 +314,11 @@ ${fileContent}`,
       const docResult = await db.collection(Collections.DOCUMENTS).insertOne(documentRecord);
       const documentId = docResult.insertedId.toString();
 
-      // Save extracted tasks if any
       if (result.tasks && result.tasks.tasks.length > 0) {
         const taskDocuments = result.tasks.tasks.map(task => 
           taskToDocument(task, documentId)
         );
         await db.collection(Collections.TASKS).insertMany(taskDocuments);
-        
-        // Update document with task IDs
         const taskIds = result.tasks.tasks.map(t => t.id);
         await db.collection(Collections.DOCUMENTS).updateOne(
           { _id: docResult.insertedId },
@@ -349,7 +326,6 @@ ${fileContent}`,
         );
       }
 
-      // Save calendar events if any
       if (result.calendarEvents && result.calendarEvents.length > 0) {
         const eventDocuments = result.calendarEvents.map(event => {
           const eventDoc: Omit<CalendarEventModel, '_id'> = {
@@ -375,7 +351,6 @@ ${fileContent}`,
         await db.collection(Collections.CALENDAR_EVENTS).insertMany(eventDocuments as CalendarEventModel[]);
       }
 
-      // Save mail drafts if any
       if (result.mailDrafts && result.mailDrafts.length > 0) {
         const mailDocuments = result.mailDrafts.map(draft => {
           const mailDoc: Omit<MailDraftModel, '_id'> = {
@@ -399,7 +374,6 @@ ${fileContent}`,
         await db.collection(Collections.MAIL_DRAFTS).insertMany(mailDocuments as MailDraftModel[]);
       }
 
-      // Save todos if any
       if (result.todoItems && result.todoItems.length > 0) {
         const todoDocuments = result.todoItems.map(item => {
           const todoDoc: Omit<TodoModel, '_id'> = {
@@ -421,7 +395,6 @@ ${fileContent}`,
         await db.collection(Collections.TODOS).insertMany(todoDocuments as TodoModel[]);
       }
 
-      // Create processing log
       const processingLog: Omit<ProcessingLogModel, '_id'> = {
         documentId,
         processingType: 'full-processing',
@@ -439,7 +412,6 @@ ${fileContent}`,
 
     } catch (dbError) {
       console.error('Error saving to MongoDB:', dbError);
-      // Continue anyway - don't fail the request if DB save fails
     }
 
     return NextResponse.json<ProcessingResponse>({
