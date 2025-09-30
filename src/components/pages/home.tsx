@@ -5,7 +5,6 @@ import React from 'react';
 import { useNotifications } from '@/contexts/notification-context';
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { 
@@ -24,9 +23,6 @@ import {
   Paperclip,
   ArrowUp,
   Square,
-  ChevronRight,
-  Sparkles,
-  History,
   Target,
   Search,
   MessageSquare,
@@ -59,6 +55,20 @@ const styles = `
   }
   textarea::-webkit-scrollbar-thumb:hover {
     background-color: #555555;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.2);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.3);
   }
 `;
 
@@ -210,13 +220,6 @@ interface ProcessingResults {
   todoItems?: number;
 }
 
-interface ActivityItem {
-  type: 'task' | 'event' | 'mail' | 'todo';
-  title: string;
-  count: number;
-  timestamp: Date;
-}
-
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -224,91 +227,23 @@ export default function HomePage() {
   const [processing, setProcessing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<ActionMode>(null);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [hasStartedChat, setHasStartedChat] = useState(false);
   const { addNotification } = useNotifications();
   
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+    if (containerRef.current && hasStartedChat) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, hasStartedChat]);
 
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem('chatMessages', JSON.stringify(messages));
     }
   }, [messages]);
-
-  useEffect(() => {
-    loadRecentActivity();
-  }, [messages]);
-
-  const loadRecentActivity = () => {
-    const activity: ActivityItem[] = [];
-    const savedMessages = localStorage.getItem('chatMessages');
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        parsed.forEach((msg: any) => {
-          if (msg.results) {
-            if (msg.results.tasksCreated) {
-              activity.push({
-                type: 'task',
-                title: 'Tasks Created',
-                count: msg.results.tasksCreated,
-                timestamp: new Date(msg.timestamp)
-              });
-            }
-            if (msg.results.calendarEvents) {
-              activity.push({
-                type: 'event',
-                title: 'Events Added',
-                count: msg.results.calendarEvents,
-                timestamp: new Date(msg.timestamp)
-              });
-            }
-            if (msg.results.mailDrafts) {
-              activity.push({
-                type: 'mail',
-                title: 'Emails Drafted',
-                count: msg.results.mailDrafts,
-                timestamp: new Date(msg.timestamp)
-              });
-            }
-            if (msg.results.todoItems) {
-              activity.push({
-                type: 'todo',
-                title: 'Todos Created',
-                count: msg.results.todoItems,
-                timestamp: new Date(msg.timestamp)
-              });
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Failed to load activity:', error);
-      }
-    }
-    setRecentActivity(activity.slice(0, 5));
-  };
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'task': return <FileCheck2 className="h-4 w-4" />;
-      case 'event': return <Calendar className="h-4 w-4" />;
-      case 'mail': return <Mail className="h-4 w-4" />;
-      case 'todo': return <ListTodo className="h-4 w-4" />;
-      default: return <FileCheck2 className="h-4 w-4" />;
-    }
-  };
 
   const modes = [
     {
@@ -407,6 +342,70 @@ export default function HomePage() {
       </div>
     );
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const saveActivitiesToDatabase = async (userMessage: Message, results: ProcessingResults) => {
+    const activities = [];
+
+    if (results.tasksCreated && results.tasksCreated > 0) {
+      activities.push({
+        type: 'task',
+        title: 'Tasks Created',
+        count: results.tasksCreated,
+        userPrompt: userMessage.content,
+        actionMode: userMessage.actionMode,
+        files: userMessage.files,
+        results,
+      });
+    }
+    if (results.calendarEvents && results.calendarEvents > 0) {
+      activities.push({
+        type: 'event',
+        title: 'Events Added',
+        count: results.calendarEvents,
+        userPrompt: userMessage.content,
+        actionMode: userMessage.actionMode,
+        files: userMessage.files,
+        results,
+      });
+    }
+    if (results.mailDrafts && results.mailDrafts > 0) {
+      activities.push({
+        type: 'mail',
+        title: 'Emails Drafted',
+        count: results.mailDrafts,
+        userPrompt: userMessage.content,
+        actionMode: userMessage.actionMode,
+        files: userMessage.files,
+        results,
+      });
+    }
+    if (results.todoItems && results.todoItems > 0) {
+      activities.push({
+        type: 'todo',
+        title: 'Todos Created',
+        count: results.todoItems,
+        userPrompt: userMessage.content,
+        actionMode: userMessage.actionMode,
+        files: userMessage.files,
+        results,
+      });
+    }
+
+    for (const activity of activities) {
+      try {
+        await fetch('/api/activities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...activity,
+            sessionId: userMessage.id,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save activity:', error);
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -587,6 +586,15 @@ export default function HomePage() {
 
       const totalItems = (results.tasksCreated || 0) + (results.calendarEvents || 0) + 
                         (results.mailDrafts || 0) + (results.todoItems || 0);
+      
+      if (totalItems > 0) {
+        try {
+          await saveActivitiesToDatabase(userMessage, results);
+        } catch (error) {
+          console.error('Failed to save activities to database:', error);
+        }
+      }
+      
       if (totalItems === 0) {
         toast.success(
           <div className="flex items-center gap-2">
@@ -901,22 +909,19 @@ export default function HomePage() {
   const hasContent = input.trim() !== "" || attachedFiles.length > 0;
 
   return (
-    <div className="relative flex h-[calc(100vh-var(--header-height))] overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
-        <div className="w-full max-w-5xl px-4">
+    <div className="relative flex h-[calc(100vh-var(--header-height))] bg-gradient-to-br from-background via-background to-muted/20">
+      <div ref={containerRef} className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/30">
+        <div className="w-full max-w-5xl mx-auto px-4 py-6 flex-1 flex flex-col min-h-0">
           
           {/* Welcome Section - Only show when no messages */}
           {!hasStartedChat && messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-in fade-in duration-700">
+            <div className="flex flex-col items-center justify-center flex-1 space-y-8 animate-in fade-in duration-700">
               {/* Hero Section */}
-              <div className="text-center space-y-4 max-w-2xl">
-                <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 backdrop-blur-sm mb-4">
-                  <Bot className="h-12 w-12 text-primary" />
-                </div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
+              <div className="text-center space-y-6 max-w-2xl">
+                <h1 className="text-5xl font-bold text-black dark:text-white tracking-tight">
                   What&apos;s on the agenda today?
                 </h1>
-                <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed font-semibold">
+                <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
                   Start a conversation, upload documents, or select an action mode to automate your workflow
                 </p>
               </div>
@@ -957,10 +962,9 @@ export default function HomePage() {
 
           {/* Chat Messages - Show when chat has started */}
           {hasStartedChat && messages.length > 0 && (
-            <div className="py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <ScrollArea className="h-[calc(100vh-var(--header-height)-300px)]" ref={scrollAreaRef}>
-                <div className="space-y-6 pb-4">
-                  {messages.map((message) => (
+            <div className="flex-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-6 pb-4">
+                {messages.map((message) => (
                     <div
                       key={message.id}
                       className={`flex gap-4 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start`}
@@ -1095,13 +1099,12 @@ export default function HomePage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
 
           {/* Input Area - Always visible at bottom */}
-          <div className={`${hasStartedChat && messages.length > 0 ? 'mt-4' : 'mt-8'}`}>
+          <div className={`mt-auto pt-4 pb-2 ${hasStartedChat && messages.length > 0 ? '' : ''}`}>
             <TooltipProvider>
               <div className="rounded-3xl border-2 border-border bg-card/80 backdrop-blur-xl p-2 shadow-2xl transition-all duration-300 hover:shadow-3xl">
                 <Textarea
@@ -1198,106 +1201,6 @@ export default function HomePage() {
               </div>
             </TooltipProvider>
           </div>
-
-          {/* Activity Section - Only show when no chat started */}
-          {!hasStartedChat && messages.length === 0 && (
-            <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-              <div className="rounded-3xl border-2 bg-card/50 backdrop-blur-xl shadow-2xl overflow-hidden">
-                {/* Header */}
-                <div className="border-b bg-gradient-to-r from-primary/5 to-purple-500/5 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
-                      <History className="h-5 w-5 text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold">Recent Activity</h2>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  {recentActivity.length === 0 ? (
-                    <div className="text-center py-12 px-4">
-                      <History className="h-16 w-16 mx-auto text-muted-foreground/20 mb-4" />
-                      <p className="text-sm font-semibold text-foreground mb-2">No recent activity</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Start processing documents to see your activity here.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 mb-6">
-                      {recentActivity.map((item, idx) => (
-                        <div 
-                          key={idx} 
-                          className="group flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-accent/40 to-accent/20 hover:from-accent/60 hover:to-accent/40 border-2 border-border/50 transition-all cursor-pointer hover:shadow-lg"
-                        >
-                          <div className={`p-3 rounded-xl shadow-md ${
-                            item.type === 'task' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
-                            item.type === 'event' ? 'bg-gradient-to-br from-green-500 to-green-600' :
-                            item.type === 'mail' ? 'bg-gradient-to-br from-purple-500 to-purple-600' :
-                            'bg-gradient-to-br from-orange-500 to-orange-600'
-                          }`}>
-                            <div className="text-white">
-                              {getActivityIcon(item.type)}
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{item.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.count} item{item.count !== 1 ? 's' : ''} • {item.timestamp.toLocaleDateString()}
-                            </p>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Quick Stats */}
-                  {recentActivity.length > 0 && (
-                    <>
-                      <div className="border-t my-6"></div>
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-primary" />
-                          Quick Stats
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div className="group p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/10 border-2 border-blue-500/20 transition-all cursor-pointer hover:border-blue-500/40">
-                            <FileCheck2 className="h-5 w-5 text-blue-600 dark:text-blue-400 mb-2" />
-                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-                              {recentActivity.filter(a => a.type === 'task').reduce((sum, a) => sum + a.count, 0)}
-                            </div>
-                            <div className="text-xs font-medium text-muted-foreground">Tasks</div>
-                          </div>
-                          <div className="group p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/10 border-2 border-green-500/20 transition-all cursor-pointer hover:border-green-500/40">
-                            <Calendar className="h-5 w-5 text-green-600 dark:text-green-400 mb-2" />
-                            <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                              {recentActivity.filter(a => a.type === 'event').reduce((sum, a) => sum + a.count, 0)}
-                            </div>
-                            <div className="text-xs font-medium text-muted-foreground">Events</div>
-                          </div>
-                          <div className="group p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/10 border-2 border-purple-500/20 transition-all cursor-pointer hover:border-purple-500/40">
-                            <Mail className="h-5 w-5 text-purple-600 dark:text-purple-400 mb-2" />
-                            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
-                              {recentActivity.filter(a => a.type === 'mail').reduce((sum, a) => sum + a.count, 0)}
-                            </div>
-                            <div className="text-xs font-medium text-muted-foreground">Emails</div>
-                          </div>
-                          <div className="group p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/10 border-2 border-orange-500/20 transition-all cursor-pointer hover:border-orange-500/40">
-                            <ListTodo className="h-5 w-5 text-orange-600 dark:text-orange-400 mb-2" />
-                            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">
-                              {recentActivity.filter(a => a.type === 'todo').reduce((sum, a) => sum + a.count, 0)}
-                            </div>
-                            <div className="text-xs font-medium text-muted-foreground">Todos</div>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

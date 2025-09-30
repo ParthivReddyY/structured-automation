@@ -22,15 +22,15 @@ import {
   IconSettings,
   IconMoon,
   IconSun,
+  IconHistory,
 } from "@tabler/icons-react"
-import { Bell, Search } from "lucide-react"
+import { Bell } from "lucide-react"
 import { AuthModal } from "@/components/auth-modal"
 import { NotificationsPanel } from "@/components/notifications-panel"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -70,8 +70,11 @@ import ActionsPage from "@/components/pages/actions"
 import TodosPage from "@/components/pages/todos"
 import CalendarPage from "@/components/pages/calendar"
 import MailsPage from "@/components/pages/mails"
+import ActivityPage from "@/components/pages/activity"
 import ProfilePage from "@/components/pages/profile"
 import SettingsPage from "@/components/pages/settings"
+import SearchResultsPage from "@/components/pages/search-results"
+import SearchBar from "@/components/search-bar"
 
 const navigationData = {
   navMain: [
@@ -100,6 +103,11 @@ const navigationData = {
       key: "mails",
       icon: IconMail,
     },
+    {
+      title: "Activity",
+      key: "activity",
+      icon: IconHistory,
+    },
     
   ],
   navFooter: [
@@ -119,9 +127,13 @@ const navigationData = {
 const NavigationContext = React.createContext<{
   currentPage: string
   setCurrentPage: (page: string) => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
 }>({
   currentPage: "home",
   setCurrentPage: () => {},
+  searchQuery: "",
+  setSearchQuery: () => {},
 })
 
 function NavMain({
@@ -305,7 +317,7 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 }
 
 function SiteHeader() {
-  const { currentPage } = React.useContext(NavigationContext)
+  const { currentPage, setCurrentPage, setSearchQuery } = React.useContext(NavigationContext)
   const { theme, setTheme } = useTheme()
   const { unreadCount } = useNotifications()
   const [mounted, setMounted] = useState(false)
@@ -319,8 +331,17 @@ function SiteHeader() {
     setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
+  const handleSearchNavigate = (page: string) => {
+    setCurrentPage(page as "home" | "actions" | "todos" | "calendar" | "mails" | "activity" | "profile" | "settings" | "search-results");
+  }
+
+  const handleOpenSearchPage = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage("search-results");
+  }
+
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) relative z-50">
       <div className="flex w-full items-center gap-2 px-4 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -339,11 +360,8 @@ function SiteHeader() {
         </Breadcrumb>
         
         {/* Search Bar */}
-        <div className="hidden md:flex flex-1 max-w-md ml-auto mr-4">
-          <div className="relative w-full">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search documents, tasks..." className="pl-8" />
-          </div>
+        <div className="hidden md:flex flex-1 max-w-md ml-auto mr-4 relative">
+          <SearchBar onNavigate={handleSearchNavigate} onOpenSearchPage={handleOpenSearchPage} />
         </div>
         
         <div className="flex items-center gap-2">
@@ -373,7 +391,7 @@ function SiteHeader() {
   )
 }
 
-function PageContent({ currentPage }: { currentPage: string }) {
+function PageContent({ currentPage, searchQuery, onNavigate }: { currentPage: string, searchQuery?: string, onNavigate: (page: string, itemId?: string) => void }) {
   if (currentPage === "home") {
     return <HomePage />
   }
@@ -390,10 +408,14 @@ function PageContent({ currentPage }: { currentPage: string }) {
             return <CalendarPage />
           case "mails":
             return <MailsPage />
+          case "activity":
+            return <ActivityPage />
           case "profile":
             return <ProfilePage />
           case "settings":
             return <SettingsPage />
+          case "search-results":
+            return <SearchResultsPage initialQuery={searchQuery} onNavigate={onNavigate} />
           default:
             return <HomePage />
         }
@@ -404,6 +426,7 @@ function PageContent({ currentPage }: { currentPage: string }) {
 
 export function DashboardApp() {
   const [currentPage, setCurrentPage] = useState("home")
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -427,8 +450,12 @@ export function DashboardApp() {
     }
   }, [currentPage])
 
+  const handleSearchNavigate = (page: string) => {
+    setCurrentPage(page);
+  }
+
   return (
-    <NavigationContext.Provider value={{ currentPage, setCurrentPage }}>
+    <NavigationContext.Provider value={{ currentPage, setCurrentPage, searchQuery, setSearchQuery }}>
       <SidebarProvider
         style={
           {
@@ -443,10 +470,10 @@ export function DashboardApp() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col">
               {currentPage === "home" ? (
-                <PageContent currentPage={currentPage} />
+                <PageContent currentPage={currentPage} searchQuery={searchQuery} onNavigate={handleSearchNavigate} />
               ) : (
                 <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                  <PageContent currentPage={currentPage} />
+                  <PageContent currentPage={currentPage} searchQuery={searchQuery} onNavigate={handleSearchNavigate} />
                 </div>
               )}
             </div>

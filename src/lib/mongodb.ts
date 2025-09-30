@@ -38,4 +38,5 @@ export const Collections = {
   TODOS: 'todos',
   CALENDAR_EVENTS: 'calendar_events',
   MAIL_DRAFTS: 'mail_drafts',
+  ACTIVITIES: 'activities',
 } as const;

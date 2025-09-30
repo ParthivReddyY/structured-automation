@@ -120,6 +120,27 @@ export interface MailDraftModel {
   updatedAt: Date;
 }
 
+export interface ActivityModel {
+  _id?: ObjectId;
+  id: string;
+  type: 'task' | 'event' | 'mail' | 'todo';
+  title: string;
+  count: number;
+  userPrompt: string;
+  actionMode?: 'todo' | 'action' | 'mail' | 'calendar';
+  files?: { name: string; type: string; size: number }[];
+  results: {
+    tasksCreated?: number;
+    calendarEvents?: number;
+    mailDrafts?: number;
+    todoItems?: number;
+  };
+  userId?: string;
+  sessionId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export function taskToDocument(task: Task, sourceDocId?: string): Omit<TaskDocument, '_id'> {
   return {
     ...task,
