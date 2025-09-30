@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ai, mistralSmall } from '@/lib/genkit';
+import { ai, geminiFlash, mistralSmall } from '@/lib/genkit';
 import { getDatabase, Collections } from '@/lib/mongodb';
 import { taskToDocument } from '@/lib/models';
 import type { 
@@ -23,6 +23,45 @@ import type {
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Helper function to make AI calls with retry logic and fallback
+async function generateWithFallback(prompt: string | object[], retries = 2) {
+  let lastError: Error | null = null;
+  
+  // Try with Gemini first (more reliable)
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await ai.generate({
+        model: geminiFlash,
+        prompt,
+        config: { temperature: 0.3 },
+      });
+      return response;
+    } catch (error) {
+      console.warn(`Gemini attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Wait before retry (exponential backoff)
+      if (i < retries) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
+    }
+  }
+  
+  // If Gemini fails, try Mistral as fallback
+  try {
+    console.log('Falling back to Mistral...');
+    const response = await ai.generate({
+      model: mistralSmall,
+      prompt,
+      config: { temperature: 0.3 },
+    });
+    return response;
+  } catch (error) {
+    console.error('Mistral fallback also failed:', error);
+    throw lastError || error;
+  }
+}
 
 // Helper function to extract JSON from AI responses that may include extra text
 function extractJSON(text: string): unknown {
@@ -74,9 +113,7 @@ export async function POST(request: NextRequest) {
     }> = {};
 
     // Step 1: Detect intent first
-    const intentResponse = await ai.generate({
-      model: mistralSmall,
-      prompt: `Analyze the following document content from file "${fileName}" and detect the primary intent.
+    const intentResponse = await generateWithFallback(`Analyze the following document content from file "${fileName}" and detect the primary intent.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -90,9 +127,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Document Content:
-${fileContent}`,
-      config: { temperature: 0.3 },
-    });
+${fileContent}`);
 
     const intentParsed = extractJSON(intentResponse.text);
     result.intent = intentParsed as IntentDetection;
@@ -102,9 +137,7 @@ ${fileContent}`,
 
     // Generate calendar events if routing to calendar
     if (routingTargets.includes('calendar')) {
-      const calendarResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Extract calendar events from the following document from file "${fileName}".
+      const calendarResponse = await generateWithFallback(`Extract calendar events from the following document from file "${fileName}".
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -125,9 +158,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Document Content:
-${fileContent}`,
-        config: { temperature: 0.3 },
-      });
+${fileContent}`);
 
       const calendarParsed = extractJSON(calendarResponse.text) as { events: CalendarEvent[] };
       result.calendarEvents = calendarParsed.events || [];

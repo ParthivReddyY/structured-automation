@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get('priority');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '100');
     const skip = parseInt(searchParams.get('skip') || '0');
 
     const db = await getDatabase();
@@ -25,18 +25,22 @@ export async function GET(request: NextRequest) {
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     
-    // Date range filtering
+    // Date range filtering - fix MongoDB date comparison
     if (startDate || endDate) {
       filter.startDate = {};
       if (startDate) {
+        // Convert to Date object for proper MongoDB comparison
         (filter.startDate as Record<string, unknown>).$gte = new Date(startDate);
       }
       if (endDate) {
+        // Convert to Date object for proper MongoDB comparison
         (filter.startDate as Record<string, unknown>).$lte = new Date(endDate);
       }
     }
 
-    // Fetch events
+    console.log('Calendar filter:', JSON.stringify(filter, null, 2));
+
+    // Fetch events - convert to plain objects
     const events = await db
       .collection<CalendarEventModel>(Collections.CALENDAR_EVENTS)
       .find(filter)
@@ -45,6 +49,18 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
+    console.log('Found events:', events.length);
+
+    // Convert MongoDB dates to ISO strings for JSON serialization
+    const serializedEvents = events.map(event => ({
+      ...event,
+      _id: event._id?.toString(),
+      startDate: event.startDate.toISOString(),
+      endDate: event.endDate ? event.endDate.toISOString() : undefined,
+      createdAt: event.createdAt.toISOString(),
+      updatedAt: event.updatedAt.toISOString(),
+    }));
+
     const total = await db
       .collection<CalendarEventModel>(Collections.CALENDAR_EVENTS)
       .countDocuments(filter);
@@ -52,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        events,
+        events: serializedEvents,
         total,
         limit,
         skip,

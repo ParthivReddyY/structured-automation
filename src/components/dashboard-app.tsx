@@ -306,22 +306,32 @@ function SiteHeader() {
 
 // Page Content Renderer
 function PageContent({ currentPage }: { currentPage: string }) {
-  switch (currentPage) {
-    case "home":
-      return <HomePage />
-    case "actions":
-      return <ActionsPage />
-    case "todos":
-      return <TodosPage />
-    case "calendar":
-      return <CalendarPage />
-    case "mails":
-      return <MailsPage />
-    case "profile":
-      return <ProfilePage />
-    default:
-      return <HomePage />
+  // Special handling for home page to give it full viewport access
+  if (currentPage === "home") {
+    return <HomePage />
   }
+  
+  // Regular page content wrapper for other pages
+  return (
+    <div className="px-4 lg:px-6">
+      {(() => {
+        switch (currentPage) {
+          case "actions":
+            return <ActionsPage />
+          case "todos":
+            return <TodosPage />
+          case "calendar":
+            return <CalendarPage />
+          case "mails":
+            return <MailsPage />
+          case "profile":
+            return <ProfilePage />
+          default:
+            return <HomePage />
+        }
+      })()}
+    </div>
+  )
 }
 
 // Main Dashboard Application Component
@@ -367,12 +377,14 @@ export function DashboardApp() {
         <SidebarInset>
           <SiteHeader />
           <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                <div className="px-4 lg:px-6">
+            <div className="@container/main flex flex-1 flex-col">
+              {currentPage === "home" ? (
+                <PageContent currentPage={currentPage} />
+              ) : (
+                <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
                   <PageContent currentPage={currentPage} />
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </SidebarInset>

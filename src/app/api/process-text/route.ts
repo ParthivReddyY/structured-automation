@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ai, mistralSmall } from '@/lib/genkit';
+import { ai, geminiFlash, mistralSmall } from '@/lib/genkit';
 import { getDatabase, Collections } from '@/lib/mongodb';
 import { taskToDocument } from '@/lib/models';
 import type { 
@@ -23,6 +23,45 @@ import type {
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Helper function to make AI calls with retry logic and fallback
+async function generateWithFallback(prompt: string | object[], retries = 2) {
+  let lastError: Error | null = null;
+  
+  // Try with Gemini first (more reliable)
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await ai.generate({
+        model: geminiFlash,
+        prompt,
+        config: { temperature: 0.3 },
+      });
+      return response;
+    } catch (error) {
+      console.warn(`Gemini attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Wait before retry (exponential backoff)
+      if (i < retries) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
+    }
+  }
+  
+  // If Gemini fails, try Mistral as fallback
+  try {
+    console.log('Falling back to Mistral...');
+    const response = await ai.generate({
+      model: mistralSmall,
+      prompt,
+      config: { temperature: 0.3 },
+    });
+    return response;
+  } catch (error) {
+    console.error('Mistral fallback also failed:', error);
+    throw lastError || error;
+  }
+}
 
 // Helper function to extract JSON from AI responses that may include extra text
 function extractJSON(text: string): unknown {
@@ -73,9 +112,7 @@ export async function POST(request: NextRequest) {
     }> = {};
 
     // Step 1: Detect intent first to determine what entities to generate
-    const intentResponse = await ai.generate({
-      model: mistralSmall,
-      prompt: `Analyze the following text and detect the primary intent and what actions should be taken.
+    const intentResponse = await generateWithFallback(`Analyze the following text and detect the primary intent and what actions should be taken.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -98,9 +135,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Text:
-${text}`,
-      config: { temperature: 0.3 },
-    });
+${text}`);
 
     const intentParsed = extractJSON(intentResponse.text);
     result.intent = intentParsed as IntentDetection;
@@ -110,9 +145,22 @@ ${text}`,
 
     // Generate calendar events if routing to calendar
     if (routingTargets.includes('calendar')) {
-      const calendarResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Extract calendar events from the following text.
+      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      
+      const calendarResponse = await generateWithFallback(`Extract calendar events from the following text.
+
+IMPORTANT CONTEXT: Today's date is ${currentDate} (${currentYear}-${currentMonth.toString().padStart(2, '0')}).
+
+When extracting dates:
+- If only a day is mentioned (e.g., "15th"), use the current month and year: ${currentYear}-${currentMonth.toString().padStart(2, '0')}-15
+- If "next week" is mentioned, add 7 days to today's date
+- If "tomorrow" is mentioned, use ${new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+- If "next month" is mentioned, use next month: ${new Date(currentYear, currentMonth, 1).toISOString().split('T')[0]}
+- For relative dates like "in 3 days", calculate from ${currentDate}
+- If a month is mentioned without a year, use ${currentYear}
+- Always output dates in YYYY-MM-DD format
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -135,9 +183,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Text:
-${text}`,
-        config: { temperature: 0.3 },
-      });
+${text}`);
 
       const calendarParsed = extractJSON(calendarResponse.text) as { events: CalendarEvent[] };
       result.calendarEvents = calendarParsed.events || [];
@@ -145,9 +191,7 @@ ${text}`,
 
     // Generate mail drafts if routing to mails
     if (routingTargets.includes('mails')) {
-      const mailResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Generate email drafts based on the following text.
+      const mailResponse = await generateWithFallback(`Generate email drafts based on the following text.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -167,9 +211,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Text:
-${text}`,
-        config: { temperature: 0.5 },
-      });
+${text}`);
 
       const mailParsed = extractJSON(mailResponse.text) as { drafts: MailDraft[] };
       result.mailDrafts = mailParsed.drafts || [];
@@ -177,9 +219,22 @@ ${text}`,
 
     // Generate todos if routing to todos
     if (routingTargets.includes('todos')) {
-      const todoResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Extract todo items from the following text.
+      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      
+      const todoResponse = await generateWithFallback(`Extract todo items from the following text.
+
+IMPORTANT CONTEXT: Today's date is ${currentDate} (${currentYear}-${currentMonth.toString().padStart(2, '0')}).
+
+When extracting due dates:
+- If only a day is mentioned (e.g., "by the 15th"), use the current month and year: ${currentYear}-${currentMonth.toString().padStart(2, '0')}-15
+- If "by next week" is mentioned, add 7 days to today's date
+- If "by tomorrow" is mentioned, use ${new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+- If "by end of month" is mentioned, use the last day of current month
+- For relative dates like "in 3 days", calculate from ${currentDate}
+- If a month is mentioned without a year, use ${currentYear}
+- Always output dates in YYYY-MM-DD format
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -199,9 +254,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
 
 Text:
-${text}`,
-        config: { temperature: 0.3 },
-      });
+${text}`);
 
       const todoParsed = extractJSON(todoResponse.text) as { items: TodoItem[] };
       result.todoItems = todoParsed.items || [];
@@ -209,9 +262,7 @@ ${text}`,
 
     // Extract tasks if requested (original functionality for actions tab)
     if (extractTasks) {
-      const tasksResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Analyze the following text and extract all actionable tasks, action items, or to-do items.
+      const tasksResponse = await generateWithFallback(`Analyze the following text and extract all actionable tasks, action items, or to-do items.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -225,9 +276,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
         
 Text:
-${text}`,
-        config: { temperature: 0.3 },
-      });
+${text}`);
       
       const parsed = extractJSON(tasksResponse.text);
       result.tasks = parsed as TasksExtraction;
@@ -235,9 +284,7 @@ ${text}`,
 
     // Generate summary if requested
     if (generateSummary) {
-      const summaryResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Analyze the following text and create a comprehensive summary.
+      const summaryResponse = await generateWithFallback(`Analyze the following text and create a comprehensive summary.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -254,9 +301,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
         
 Text:
-${text}`,
-        config: { temperature: 0.5 },
-      });
+${text}`);
 
       const parsed = extractJSON(summaryResponse.text);
       result.summary = parsed as DocumentSummary;
@@ -264,9 +309,7 @@ ${text}`,
 
     // Extract metadata if requested
     if (extractMetadata) {
-      const metadataResponse = await ai.generate({
-        model: mistralSmall,
-        prompt: `Analyze the following text and extract relevant metadata.
+      const metadataResponse = await generateWithFallback(`Analyze the following text and extract relevant metadata.
 
 IMPORTANT: Return ONLY valid JSON, no additional text, explanations, or markdown formatting.
 
@@ -284,9 +327,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 }
         
 Text:
-${text}`,
-        config: { temperature: 0.2 },
-      });
+${text}`);
 
       const parsed = extractJSON(metadataResponse.text);
       result.metadata = parsed as Metadata;

@@ -1,6 +1,6 @@
+// Using Mistral Pixtral for multimodal processing - excellent OCR and document parsing
 import { NextRequest, NextResponse } from 'next/server';
-import { ai, gemini20FlashExp } from '@/lib/genkit';
-// Note: Using Gemini for multimodal processing as Mistral doesn't support image/PDF processing well
+import { ai, pixtral, gemini20FlashExp } from '@/lib/genkit';
 import { getDatabase, Collections } from '@/lib/mongodb';
 import { taskToDocument } from '@/lib/models';
 import type { 
@@ -13,10 +13,52 @@ import type {
   MailDraft,
   TodoItem
 } from '@/types/ai-schemas';
-import type { DocumentModel, ProcessingLogModel } from '@/lib/models';
+import type { 
+  DocumentModel, 
+  ProcessingLogModel
+} from '@/lib/models';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+// Helper function to make AI calls with retry logic and fallback
+async function generateWithFallback(prompt: string | object[], retries = 2) {
+  let lastError: Error | null = null;
+  
+  // Try with Gemini first (more reliable for multimodal)
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await ai.generate({
+        model: gemini20FlashExp,
+        prompt,
+        config: { temperature: 0.3 },
+      });
+      return response;
+    } catch (error) {
+      console.warn(`Gemini attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Wait before retry (exponential backoff)
+      if (i < retries) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
+    }
+  }
+  
+  // If Gemini fails, try Pixtral as fallback
+  try {
+    console.log('Falling back to Pixtral...');
+    const response = await ai.generate({
+      model: pixtral,
+      prompt,
+      config: { temperature: 0.3 },
+    });
+    return response;
+  } catch (error) {
+    console.error('Pixtral fallback also failed:', error);
+    throw lastError || error;
+  }
+}
 
 /**
  * Extract JSON from AI response text
@@ -108,9 +150,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Step 1: Detect intent from the image/document content
-    const intentResponse = await ai.generate({
-      model: gemini20FlashExp,
-      prompt: [
+    const intentResponse = await generateWithFallback([
         { media: mediaObject },
         {
           text: `Analyze this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}" and determine its primary intent/purpose.
@@ -142,9 +182,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 For images: First extract any visible text using OCR, then analyze the content to determine intent.`
         }
-      ],
-      config: { temperature: 0.3 },
-    });
+      ]);
 
     const intentParsed = extractJSON(intentResponse.text);
     result.intent = intentParsed as IntentDetection;
@@ -154,9 +192,7 @@ For images: First extract any visible text using OCR, then analyze the content t
 
     // Generate calendar events if routing to calendar
     if (routingTargets.includes('calendar')) {
-      const calendarResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const calendarResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Extract calendar events, meetings, deadlines, or scheduled items from this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}".
@@ -183,9 +219,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 For images with text: Use OCR to extract text first, then identify calendar-related information. Return empty array [] if no calendar events found.`
           }
-        ],
-        config: { temperature: 0.3 },
-      });
+        ]);
 
       const calendarParsed = extractJSON(calendarResponse.text);
       result.calendarEvents = Array.isArray(calendarParsed) ? calendarParsed as CalendarEvent[] : [];
@@ -193,9 +227,7 @@ For images with text: Use OCR to extract text first, then identify calendar-rela
 
     // Generate mail drafts if routing to mails
     if (routingTargets.includes('mails')) {
-      const mailResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const mailResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Based on this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}", generate appropriate email drafts (responses, updates, reports).
@@ -219,9 +251,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 For images: Extract text using OCR first, then generate appropriate email drafts. Return empty array [] if no emails needed.`
           }
-        ],
-        config: { temperature: 0.5 },
-      });
+        ]);
 
       const mailParsed = extractJSON(mailResponse.text);
       result.mailDrafts = Array.isArray(mailParsed) ? mailParsed as MailDraft[] : [];
@@ -229,9 +259,7 @@ For images: Extract text using OCR first, then generate appropriate email drafts
 
     // Generate todo items if routing to todos
     if (routingTargets.includes('todos')) {
-      const todoResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const todoResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Extract simple checklist items or personal tasks from this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}".
@@ -253,9 +281,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 For images: Use OCR to extract visible text, then identify todo items. Return empty array [] if no todos found.`
           }
-        ],
-        config: { temperature: 0.3 },
-      });
+        ]);
 
       const todoParsed = extractJSON(todoResponse.text);
       result.todoItems = Array.isArray(todoParsed) ? todoParsed as TodoItem[] : [];
@@ -263,9 +289,7 @@ For images: Use OCR to extract visible text, then identify todo items. Return em
 
     // Extract tasks if requested (for actions tab)
     if (extractTasks) {
-      const tasksResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const tasksResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Analyze this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}" and extract all actionable tasks, action items, or to-do items. 
@@ -294,9 +318,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 Extract and structure all tasks found in the document. If it's an image, also describe what you see before extracting tasks.`
           }
-        ],
-        config: { temperature: 0.3 },
-      });
+        ]);
 
       const parsed = extractJSON(tasksResponse.text);
       result.tasks = parsed as TasksExtraction;
@@ -304,9 +326,7 @@ Extract and structure all tasks found in the document. If it's an image, also de
 
     // Generate summary if requested
     if (generateSummary) {
-      const summaryResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const summaryResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Analyze this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}" and create a comprehensive summary.
@@ -327,9 +347,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 If this is an image, describe the visual content and extract any text visible in the image using OCR capabilities. Then provide the summary based on the extracted content.`
           }
-        ],
-        config: { temperature: 0.5 },
-      });
+        ]);
 
       const parsed = extractJSON(summaryResponse.text);
       result.summary = parsed as DocumentSummary;
@@ -337,9 +355,7 @@ If this is an image, describe the visual content and extract any text visible in
 
     // Extract metadata if requested
     if (extractMetadata) {
-      const metadataResponse = await ai.generate({
-        model: gemini20FlashExp,
-        prompt: [
+      const metadataResponse = await generateWithFallback([
           { media: mediaObject },
           {
             text: `Analyze this ${mimeType.includes('pdf') ? 'PDF document' : 'image'} "${fileName}" and extract relevant metadata.
@@ -361,9 +377,7 @@ JSON structure (respond with ONLY this JSON, nothing else):
 
 For images, also extract any text visible using OCR and analyze that content for metadata extraction.`
           }
-        ],
-        config: { temperature: 0.2 },
-      });
+        ]);
 
       const parsed = extractJSON(metadataResponse.text);
       result.metadata = parsed as Metadata;
@@ -495,3 +509,6 @@ For images, also extract any text visible using OCR and analyze that content for
     );
   }
 }
+
+
+
