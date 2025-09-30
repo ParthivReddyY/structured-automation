@@ -5,9 +5,15 @@ import { googleAI, gemini15Flash, gemini15Pro, gemini20FlashExp } from '@genkit-
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+/**
+ * Test Gemini Models
+ * Note: This endpoint is for testing Gemini API availability
+ * Primary AI processing now uses Mistral (see test-mistral route)
+ */
 export async function GET() {
   const testResults = {
     timestamp: new Date().toISOString(),
+    note: 'Gemini is used only for multimodal/image processing. Text processing uses Mistral.',
     tests: [] as Array<{ model: string; status: string; response?: string; error?: string }>,
   };
 

@@ -4,6 +4,161 @@
 
 The Intelligent Data-to-Action System transforms unstructured text and documents into structured information and actionable tasks. By leveraging multiple AI models through Google Genkit's orchestration framework, the system extracts meaningful data and automates task management within a clean, intuitive interface.
 
+## Key Examples:
+**1. Meeting Reminder (Calendar + Actions)**
+
+Input (text):
+“I have a meeting at 10 PM in Zoom workspace”
+
+Structured Output:
+
+{
+  "intent": "meeting",
+  "title": "Meeting in Zoom workspace",
+  "time": "22:00",
+  "date": "today",
+  "priority": "high"
+}
+
+
+Action Taken:
+
+Saved in Actions tab with high priority.
+
+Added to Calendar (event scheduled at 10 PM).
+
+**2. Customer Support Request (Mails + Actions)**
+
+Input (PDF/Docx):
+“Customer John reports an issue with logging into his account. Needs urgent help.”
+
+Structured Output:
+
+{
+  "intent": "customer_support",
+  "title": "Support request - John",
+  "description": "Customer cannot log into account",
+  "priority": "high",
+  "response_needed": true
+}
+
+
+Action Taken:
+
+Added to Actions tab (support ticket).
+
+AI generates a Mail Draft:
+“Hello John, we’re sorry for the trouble. Our team is checking the login issue and will update you shortly.”
+
+Draft available in Mails tab for review.
+
+**3. Personal Task / To-do (To-do’s)**
+
+Input (text):
+“Buy groceries: milk, bread, and eggs tomorrow”
+
+Structured Output:
+
+{
+  "intent": "personal_task",
+  "todos": [
+    { "title": "Buy milk", "priority": "medium", "due_date": "tomorrow" },
+    { "title": "Buy bread", "priority": "medium", "due_date": "tomorrow" },
+    { "title": "Buy eggs", "priority": "medium", "due_date": "tomorrow" }
+  ]
+}
+
+
+Action Taken:
+
+Added as checklist items in To-do’s tab.
+
+Due date marked in Calendar.
+
+**4. Notes from Meeting (Actions + Summary)**
+
+Input (PDF of meeting notes):
+“Project deadline is next Friday. Assign John to backend tasks. Review UI designs before Wednesday.”
+
+Structured Output:
+
+{
+  "intent": "meeting_notes",
+  "tasks": [
+    { "title": "Project deadline", "due_date": "next Friday", "priority": "high" },
+    { "title": "Backend tasks", "assignee": "John", "priority": "medium" },
+    { "title": "Review UI designs", "due_date": "Wednesday", "priority": "medium" }
+  ],
+  "summary": "Project meeting concluded with a deadline set for next Friday..."
+}
+
+
+Action Taken:
+
+Tasks saved in Actions tab.
+
+Deadlines appear in Calendar.
+
+Summary stored in Documents for quick reference.
+
+**5. Work Request (Mail Draft + Actions)**
+
+Input (image of handwritten note via OCR):
+“Send monthly report to manager by Monday morning.”
+
+Structured Output:
+
+{
+  "intent": "send_report",
+  "task": "Prepare and send monthly report",
+  "due_date": "Monday 9:00 AM",
+  "priority": "high"
+}
+
+
+Action Taken:
+
+Added to Actions tab.
+
+Calendar entry created for Monday morning.
+
+Mail Draft generated in Mails tab:
+“Hello Manager, please find attached the monthly report. Best regards.”
+
+**6. Simple Reminder (Actions Only)**
+
+Input (plain text):
+“Remind me to call Mom at 6 PM”
+
+Structured Output:
+
+{
+  "intent": "reminder",
+  "task": "Call Mom",
+  "time": "18:00",
+  "priority": "medium"
+}
+
+
+Action Taken:
+
+Stored in Actions tab as a reminder.
+
+Calendar entry created for 6 PM.
+
+**7. Support Documentation (Documents + Notes)**
+
+Input (Docx file):
+A large support report with multiple troubleshooting steps.
+
+Action Taken:
+
+AI generates a summary and saves it in Documents tab.
+
+Extracted tasks (like "Update FAQ", "Fix login bug") routed to Actions tab.
+
+Related todos added to To-do’s.
+
 ## Core Features
 
 ### Document Processing
@@ -23,26 +178,7 @@ The Intelligent Data-to-Action System transforms unstructured text and documents
 - **Document Summarization** - Generate concise summaries of lengthy documents
 - **Notes Organization** - Transform unstructured notes into organized formats
 
-## Technical Architecture
 
-### Frontend Layer
-- **Framework**: Next.js 14 with TypeScript and App Router
-- **UI Components**: Tailwind CSS with Shadcn/ui for consistent design
-- **Form Management**: React Hook Form with Zod validation
-- **Document Handling**: react-dropzone for file uploads
-- **Email Templates**: React Email for preview-only email formats
-
-### Backend & AI Layer
-- **API Framework**: Next.js API Routes
-- **Database**: Supabase (PostgreSQL) for data persistence
-- **Storage**: Supabase Storage for document files
-- **Authentication**: Supabase Auth for user management
-
-### AI Processing Layer
-- **Orchestration**: Google Genkit for AI workflow management
-- **Primary Model**: Google Gemini Pro for main content processing
-- **Validation Model**: Mistral AI for secondary validation
-- **Document Processing**: pdf-parse and mammoth.js libraries
 
 ### Data Model
 - **Tasks** - Extracted actionable items with priorities and deadlines
@@ -90,67 +226,7 @@ The Intelligent Data-to-Action System transforms unstructured text and documents
 2. Quick access to original files and AI-generated insights
 3. Historical view of all processing activities
 
-## Implementation Roadmap
 
-### Phase 1: Foundation (Days 1-2)
-- Initial Next.js and Supabase setup
-- Google Genkit project configuration
-- Basic UI components and layout
-- Document upload functionality
-
-### Phase 2: AI Processing (Days 2-3)
-- Genkit flow implementation
-- Gemini and Mistral AI integration
-- Document parsing utilities
-- Basic task extraction
-
-### Phase 3: Core Features (Days 3-4)
-- Complete task management system
-- Todo list functionality
-- Document summary generation
-- Email template previews
-
-### Phase 4: Refinement (Days 5-6)
-- UI/UX polish and responsiveness
-- Performance optimization
-- Error handling and edge cases
-- Testing and documentation
-
-## Advantages & Benefits
-
-### Multi-AI Approach
-- **Reliability**: Cross-validation between different models
-- **Flexibility**: Choose appropriate model for different tasks
-- **Cost Efficiency**: Use free tiers strategically across providers
-
-### Genkit Orchestration
-- **Workflow Management**: Streamlined AI processing pipelines
-- **Prompt Engineering**: Centralized prompt management
-- **Evaluation Framework**: Built-in performance tracking
-
-### Technical Architecture
-- **Serverless**: Fully serverless architecture for scalability
-- **Cost Effective**: Leverages free tiers of all services
-- **Modern Stack**: Latest technologies for optimal development
-
-### User Experience
-- **Intuitive Interface**: Clean, responsive design
-- **Real-time Feedback**: Processing status and confidence indicators
-- **Self-contained**: All functionality within single application
-
-## Cost Analysis
-
-### Development Costs
-- **Google Gemini API**: Free tier (60 requests/minute)
-- **Mistral AI**: Free tier or minimal usage
-- **Supabase**: Free tier (500MB database, 1GB storage)
-- **Vercel**: Free hosting tier
-
-### Optimization Strategy
-- Strategic use of AI models based on complexity
-- Client-side processing where possible
-- Efficient caching to reduce API calls
-- Smart batching of requests
 
 ## Conclusion
 
